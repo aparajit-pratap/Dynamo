@@ -66,6 +66,10 @@ limitations under the License.
     <DefineConstants>$(DefineConstants);USE_DSENGINE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DynamoUnits, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\bin\AnyCPU\Debug\DynamoUnits.dll</HintPath>
+    </Reference>
     <Reference Include="FScheme, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\bin\AnyCPU\Debug\FScheme.dll</HintPath>
@@ -85,9 +89,8 @@ limitations under the License.
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\extern\Helix3D\NET40\HelixToolkit.Wpf.dll</HintPath>
     </Reference>
-    <Reference Include="LibGNet">
-      <HintPath>..\..\extern\DynamoAsm\LibGNet.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="LibG.Managed">
+      <HintPath>..\..\extern\DynamoAsm\LibG.Managed.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Practices.Prism">
@@ -414,10 +417,6 @@ limitations under the License.
     </Resource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DynamoUnits\DynamoUnits.csproj">
-      <Project>{6e0a079e-85f1-45a1-ad5b-9855e4344809}</Project>
-      <Name>DynamoUnits</Name>
-    </ProjectReference>
     <ProjectReference Include="..\DynamoUnits\DynamoUnits.csproj">
       <Project>{6e0a079e-85f1-45a1-ad5b-9855e4344809}</Project>
       <Name>DynamoUnits</Name>
