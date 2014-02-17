@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../extern/DesignScript/DesignScriptRunnerAPI.h"
+
 // The following ifdef block is the standard way of creating macros which make exporting 
 // from a DLL simpler. All files within this DLL are compiled with the DYNAMO_EXPORTS
 // symbol defined on the command line. This symbol should not be defined on any project
@@ -21,6 +23,11 @@ public:
     
     DYNAMOWRAPPER_API static DynamoWrapperApi* create();
 
+    virtual void Initialize() = 0;
     virtual void StartDynamo() = 0;
+    virtual void CreateGraph() = 0;
+    virtual void CreateGraphFromAst(AstNode* pAstNode, DesignScriptMethod* pMirror) = 0;
+    
 };
+
 

@@ -411,6 +411,11 @@ namespace Dynamo.Models
             }
         }
 
+        public void SetAstIdentifier(string name)
+        {
+            _identifier = new IdentifierNode { Name = name, Value = name };
+        }
+
         /// <summary>
         ///     If this node is allowed to be converted to AST node in nodes to code conversion.
         /// </summary>
@@ -425,7 +430,7 @@ namespace Dynamo.Models
         /// <summary>
         ///     Base name for ProtoAST Identifiers corresponding to this node's output.
         /// </summary>
-        protected string AstIdentifierBase
+        protected internal string AstIdentifierBase
         {
             get { return AstBuilder.StringConstants.VarPrefix + GUID.ToString().Replace("-", string.Empty); }
         }
@@ -479,7 +484,8 @@ namespace Dynamo.Models
             if (OutPortData.Count == 1)
                 return AstIdentifierForPreview;
 
-            string nameAndValue = AstIdentifierBase + "[" + outputIndex + "]";
+            //string nameAndValue = AstIdentifierBase + "[" + outputIndex + "]";
+            string nameAndValue = AstIdentifierForPreview.Name + "[" + outputIndex + "]";
 
             return new IdentifierNode { Name = nameAndValue, Value = nameAndValue };
         }
