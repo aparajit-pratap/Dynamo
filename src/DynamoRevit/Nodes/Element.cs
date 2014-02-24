@@ -2,6 +2,7 @@
 using System.Linq;
 using Autodesk.Revit.DB;
 using Dynamo.Models;
+using Dynamo.Utilities;
 using Microsoft.FSharp.Collections;
 
 namespace Dynamo.Nodes
@@ -80,7 +81,7 @@ namespace Dynamo.Nodes
         public Height()
         {
             InPortData.Add(new PortData("elem", "Level, Family Instance, RefPoint, XYZ", typeof(FScheme.Value.Container)));//add elements here when adding switch statements 
-            OutPortData.Add(new PortData("h", "The height of an element in z relative to project 0.", typeof(FScheme.Value.Number)));
+            OutPortData.Add(new PortData("h", "The height of an element in z relative to project 0.", typeof(FScheme.Value.Container)));
 
             RegisterAllPorts();
         }
@@ -121,7 +122,7 @@ namespace Dynamo.Nodes
         {
             var a = ((FScheme.Value.Container)args[0]).Item;
 
-            return FScheme.Value.NewContainer(Units.Length.FromFeet(getHeight(a)));
+            return FScheme.Value.NewContainer(Units.Length.FromFeet(getHeight(a), dynSettings.Controller.UnitsManager));
         }
     }
 }

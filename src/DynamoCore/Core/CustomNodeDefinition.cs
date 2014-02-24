@@ -59,6 +59,8 @@ namespace Dynamo
             }
         }
 
+        public bool IsBeingLoaded { get; set; }
+
         private IEnumerable<CustomNodeDefinition> FindAllDependencies(HashSet<CustomNodeDefinition> dependencySet)
         {
             var query = DirectDependencies.Where(def => !dependencySet.Contains(def));
@@ -158,10 +160,10 @@ namespace Dynamo
             #endregion
 
             // color the node to define its connectivity
-            foreach (var ele in topMost)
-            {
-                ele.Item2.ValidateConnections();
-            }
+            //foreach (var ele in topMost)
+            //{
+            //    ele.Item2.ValidateConnections();
+            //}
 
             //Find function entry point, and then compile
             var variables = functionWorkspace.Nodes.OfType<Symbol>().ToList();
@@ -174,9 +176,13 @@ namespace Dynamo
                 .ToList()
                 .ForEach(node =>
                 {
+                    node.DisableReporting();
+
                     node.SetInputs(inputNames);
                     node.SetOutputs(outputNames);
                     node.RegisterAllPorts();
+
+                    node.EnableReporting();
                 });
 
             //Call OnSave for all saved elements
@@ -261,6 +267,11 @@ namespace Dynamo
         /// <param name="controller"></param>
         public void Compile(EngineController controller)
         {
+            // If we are loading dyf file, dont compile it until all nodes are loaded
+            // otherwise some intermediate function defintions will be created.
+            if (IsBeingLoaded)
+                return;
+
             #region Outputs and Inputs and UI updating
 
             #region Find outputs
@@ -310,10 +321,10 @@ namespace Dynamo
             #endregion
 
             // color the node to define its connectivity
-            foreach (var ele in topMost)
-            {
-                ele.Item2.ValidateConnections();
-            }
+            //foreach (var ele in topMost)
+            //{
+            //    ele.Item2.ValidateConnections();
+            //}
 
             //Find function entry point, and then compile
             var inputNodes = WorkspaceModel.Nodes.OfType<Symbol>().ToList();
@@ -321,12 +332,23 @@ namespace Dynamo
             Parameters = inputNodes.Select(x => x.InputSymbol);
 
             //Update existing function nodes which point to this function to match its changes
-            var instances =
-                dynSettings.Controller.DynamoModel.AllNodes.OfType<CustomNodeInstance>()
-                           .Where(el => el.Definition != null && el.Definition == this);
+            dynSettings.Controller.DynamoModel.AllNodes
+                        .OfType<Function>()
+                        .Where(el => el.Definition != null && el.Definition == this)
+                        .ToList()
+                        .ForEach(node =>
+                        {
+                            node.DisableReporting();
+                            node.SetInputs(Parameters);
+                            node.SetOutputs(ReturnKeys);
+                            node.RegisterAllPorts();
+                            node.EnableReporting();
+                        });
 
+            /*
             foreach (var node in instances)
                 node.ResyncWithDefinition();
+            */
 
             //Call OnSave for all saved elements
             foreach (var node in WorkspaceModel.Nodes)

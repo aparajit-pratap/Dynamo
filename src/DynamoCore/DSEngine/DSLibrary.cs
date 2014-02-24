@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using GraphToDSCompiler;
+using ProtoCore.AST.AssociativeAST;
 using ProtoCore.DSASM;
 using ProtoCore.Utils;
 using ProtoFFI;
@@ -32,8 +33,9 @@ namespace Dynamo.DSEngine
     {
         public string Parameter { get; private set; }
         public string Type { get; private set; }
+        public object DefaultValue { get; private set; }
 
-        public TypedParameter(string parameter, string type)
+        public TypedParameter(string parameter, string type, object defaultValue = null)
         {
             if (string.IsNullOrEmpty(parameter))
             {
@@ -46,18 +48,24 @@ namespace Dynamo.DSEngine
                 throw new ArgumentNullException("Type cannot be null.");
             }
             Type = type;
+            DefaultValue = defaultValue;
         }
 
         public override string ToString()
         {
-            if (String.IsNullOrEmpty(Type))
+            string str = Parameter;
+            
+            if (!String.IsNullOrEmpty(Type))
             {
-                return Parameter;
+                str = Parameter + ": " + Type.Split('.').Last();
             }
-            else
+
+            if (DefaultValue != null)
             {
-                return Parameter + ": " + Type;
+                str = str + " = " + DefaultValue.ToString();
             }
+
+            return str;
         }
     }
 
@@ -120,6 +128,15 @@ namespace Dynamo.DSEngine
         {
             get;
             private set;
+        }
+
+        /// <summary>
+        /// Does the function accept a variable number of arguments?
+        /// </summary>
+        public bool IsVarArg 
+        { 
+            get; 
+            private set; 
         }
 
         /// <summary>
@@ -242,6 +259,23 @@ namespace Dynamo.DSEngine
             }
         }
 
+        /// <summary>
+        /// QualifiedName with leading namespaces removed.
+        /// </summary>
+        public string DisplayName
+        {
+            get
+            {
+                if (FunctionType.GenericFunction == Type)
+                    return UserFriendlyName;
+
+                var idx = ClassName.LastIndexOf('.');
+                return idx < 0
+                    ? QualifiedName
+                    : string.Format("{0}.{1}", ClassName.Substring(idx + 1), Name);
+            }
+        }
+
         public override bool Equals(object obj)
         {
             if (null == obj || GetType() != obj.GetType())
@@ -277,7 +311,8 @@ namespace Dynamo.DSEngine
                             IEnumerable<TypedParameter> parameters,
                             string returnType,
                             FunctionType type,
-                            IEnumerable<string> returnKeys = null)
+                            IEnumerable<string> returnKeys = null,
+                            bool isVarArg = false)
         {
             Assembly = assembly;
             ClassName = className;
@@ -286,6 +321,7 @@ namespace Dynamo.DSEngine
             ReturnType = returnType;
             Type = type;
             ReturnKeys = returnKeys;
+            IsVarArg = isVarArg;
         }
     }
 
@@ -344,7 +380,7 @@ namespace Dynamo.DSEngine
             if (_functions.Count == 0)
                 return null;
 
-            var func = _functions.FirstOrDefault(f => f.MangledName.Equals(managledName));
+            var func = _functions.FirstOrDefault(f => f.MangledName.EndsWith(managledName));
             return null == func ? _functions.First() : func;
         }
 
@@ -415,13 +451,25 @@ namespace Dynamo.DSEngine
 
         public static LibraryServices GetInstance()
         {
-            return _libraryServices;
+            lock (singletonMutex)
+            {
+                if (_libraryServices == null)
+                    _libraryServices = new LibraryServices();
+
+                return _libraryServices;
+            }
         }
 
-        private static LibraryServices _libraryServices = new LibraryServices();
+        /// <summary>
+        /// lock object to prevent races on establishing the singleton
+        /// </summary>
+        private static Object singletonMutex = new object();
+
+
+        private static LibraryServices _libraryServices = null; // new LibraryServices();
         private LibraryServices()
         {
-            GraphUtilities.PreloadAssembly(_libraries);
+            PreloadLibraries();
 
             PopulateBuiltIns();
             PopulateOperators();
@@ -436,10 +484,9 @@ namespace Dynamo.DSEngine
         {
             _importedFunctionGroups.Clear();
             _builtinFunctionGroups.Clear();
-            _libraries = new List<string> { "Math.dll", "ProtoGeometry.dll" };
 
-            GraphUtilities.Reset();
-            GraphUtilities.PreloadAssembly(_libraries);
+            PreloadLibraries();
+
             PopulateBuiltIns();
             PopulateOperators();
             PopulatePreloadLibraries();
@@ -456,7 +503,22 @@ namespace Dynamo.DSEngine
             }
         }
 
-        private List<string> _libraries = new List<string> { "Math.dll", "ProtoGeometry.dll" } ;
+        private void PreloadLibraries()
+        {
+            GraphUtilities.Reset();
+
+            _libraries = new List<string>
+            {
+                "ProtoGeometry.dll",
+                "DSCoreNodes.dll",
+                "FunctionObject.ds",
+                "DSIronPython.dll"
+            };
+
+            GraphUtilities.PreloadAssembly(_libraries);
+        }
+
+        private List<string> _libraries;
         private readonly Dictionary<string, Dictionary<string, FunctionGroup>> _importedFunctionGroups = new Dictionary<string, Dictionary<string, FunctionGroup>>(new LibraryPathComparer());
         private Dictionary<string, FunctionGroup> _builtinFunctionGroups = new Dictionary<string, FunctionGroup>();
 
@@ -478,7 +540,10 @@ namespace Dynamo.DSEngine
                 return functionGroups.Values;
             }
 
-            return null;
+            // Return an empty list instead of 'null' as some of the caller may
+            // not have the opportunity to check against 'null' enumerator (for
+            // example, an inner iterator in a nested LINQ statement).
+            return new List<FunctionGroup>();
         }
 
         /// <summary>
@@ -523,7 +588,8 @@ namespace Dynamo.DSEngine
             {
                 FunctionGroup functionGroup;
                 string qualifiedName = mangledName.Split(new char[] { '@' })[0];
-                if (groups.TryGetValue(qualifiedName, out functionGroup))
+
+                if (TryGetFunctionGroup(groups, qualifiedName, out functionGroup))
                 {
                     return functionGroup.GetFunctionDescriptor(mangledName);
                 }
@@ -554,14 +620,54 @@ namespace Dynamo.DSEngine
             {
                 foreach (var groupMap in _importedFunctionGroups.Values)
                 {
-                   if (groupMap.TryGetValue(qualifiedName, out functionGroup))
-                   {
-                       return functionGroup.GetFunctionDescriptor(managledName);
-                   }
+                    if (TryGetFunctionGroup(groupMap, qualifiedName, out functionGroup))
+                    {
+                        return functionGroup.GetFunctionDescriptor(managledName);
+                    }
                 }
             }
 
             return null;
+        }
+
+        private bool CanbeResolvedTo(string[] partialName, string[] fullName)
+        {
+            if (null == partialName || 
+                null == fullName || 
+                partialName.Length > fullName.Length)
+            {
+                return false;
+            }
+
+            return fullName.Reverse()
+                           .Take(partialName.Length)
+                           .SequenceEqual(partialName.Reverse());
+        }
+
+        private bool TryGetFunctionGroup(Dictionary<string, FunctionGroup> funcGroupMap,
+                                         string qualifiedName,
+                                         out FunctionGroup funcGroup)
+        {
+            if (funcGroupMap.TryGetValue(qualifiedName, out funcGroup))
+            {
+                return true;
+            }
+            else
+            {
+                string[] partialName = qualifiedName.Split('.');
+                string key = funcGroupMap.Keys.FirstOrDefault(k =>
+                                CanbeResolvedTo(partialName, k.Split('.')));
+
+                if (key != null)
+                {
+                    funcGroup = funcGroupMap[key];
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
 
         /// <summary>
@@ -590,20 +696,11 @@ namespace Dynamo.DSEngine
                 return;
             }
 
-            // Give add-in folder a higher priority and look alongside "DynamoCore.dll".
-            string assemblyName = Path.GetFileName(library); // Strip out possible directory.
-            string currAsmLocation = System.Reflection.Assembly.GetCallingAssembly().Location;
-            library = Path.Combine(Path.GetDirectoryName(currAsmLocation), assemblyName);
-
-            if (!File.Exists(library)) // Not found under add-in folder...
+            if (!ResolveLibraryPath(ref library))
             {
-                library = Path.GetFullPath(library);
-                if (!File.Exists(library))
-                {
-                    string errorMessage = string.Format("Cannot find library path: {0}.", library);
-                    OnLibraryLoadFailed(new LibraryLoadFailedEventArgs(library, errorMessage));
-                    return;
-                }
+                string errorMessage = string.Format("Cannot find library path: {0}.", library);
+                OnLibraryLoadFailed(new LibraryLoadFailedEventArgs(library, errorMessage));
+                return;
             }
 
             OnLibraryLoading(new LibraryLoadingEventArgs(library));
@@ -763,6 +860,23 @@ namespace Dynamo.DSEngine
             }
         }
 
+        private bool ResolveLibraryPath(ref string library)
+        {
+            if (File.Exists(library)) // Absolute path, we're done here.
+                return true;
+
+            // Give add-in folder a higher priority and look alongside "DynamoCore.dll".
+            string assemblyName = Path.GetFileName(library); // Strip out possible directory.
+            string currAsmLocation = System.Reflection.Assembly.GetCallingAssembly().Location;
+            library = Path.Combine(Path.GetDirectoryName(currAsmLocation), assemblyName);
+
+            if (File.Exists(library)) // Found under add-in folder...
+                return true;
+
+            library = Path.GetFullPath(library);
+            return File.Exists(library);
+        }
+
         private void ImportProcedure(string library, string className, ProcedureNode proc)
         {
             if (proc.isAutoGeneratedThisProc)
@@ -808,14 +922,57 @@ namespace Dynamo.DSEngine
                 }
             }
 
-            var arguments = proc.argInfoList.Zip(proc.argTypeList, (arg, argType) => new TypedParameter(arg.Name, argType.ToString()));
+            var arguments = proc.argInfoList.Zip(proc.argTypeList, 
+                (arg, argType) => 
+                {
+                    object defaultValue = null;
+                    if (arg.isDefault)
+                    {
+                        var binaryExpr = arg.defaultExpression as BinaryExpressionNode;
+                        if (binaryExpr != null)
+                        {
+                            var vnode = binaryExpr.RightNode;
+                            if (vnode is IntNode)
+                            {
+                                long v;
+                                if (Int64.TryParse((vnode as IntNode).value, out v))
+                                {
+                                    defaultValue = v;
+                                }
+                            }
+                            else if (vnode is DoubleNode)
+                            {
+                                double v;
+                                if (Double.TryParse((vnode as DoubleNode).value, out v))
+                                {
+                                    defaultValue = v;
+                                }
+                            }
+                            else if (vnode is BooleanNode)
+                            {
+                                bool v;
+                                if (Boolean.TryParse((vnode as BooleanNode).value, out v))
+                                {
+                                    defaultValue = v;
+                                }
+                            }
+                            else if (vnode is StringNode)
+                            {
+                                defaultValue = (vnode as StringNode).value; 
+                            }
+                        }
+                    }
+
+                    return new TypedParameter(arg.Name, argType.ToString(), defaultValue);
+                });
+
             IEnumerable<string> returnKeys = null;
             if (proc.MethodAttribute != null && proc.MethodAttribute.MutilReturnMap != null)
             {
                 returnKeys = proc.MethodAttribute.MutilReturnMap.Keys;
             }
 
-            var function = new FunctionDescriptor(library, className, procName, arguments, proc.returntype.ToString(), type, returnKeys);
+            var function = new FunctionDescriptor(library, className, procName, arguments, proc.returntype.ToString(), type, returnKeys, proc.isVarArg);
             AddImportedFunctions(library, new FunctionDescriptor[] { function });
         }
 

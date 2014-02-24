@@ -212,7 +212,7 @@ namespace Dynamo.Nodes
                     }
                     else if (arg.Value.IsContainer)
                     {
-                        e.Parameters[parameter] = SIUnit.UnwrapToSIUnit(arg.Value).Value;  
+                        e.Parameters[parameter] = Utils.UnwrapToSIUnit(arg.Value).Value * dynSettings.Controller.UnitsManager.UiLengthConversion;  
                     }
                 }  
             }
@@ -223,7 +223,7 @@ namespace Dynamo.Nodes
                 {
                     var func = ((Value.Function)functionLookup[name]).Item;
                     fArgs.Result = ((Value.Number)func.Invoke(
-                        Utils.SequenceToFSharpList(
+                        Utils.ToFSharpList(
                             fArgs.Parameters.Select(
                                 p => Value.NewNumber(Convert.ToDouble(p.Evaluate())))))).Item;
                 }

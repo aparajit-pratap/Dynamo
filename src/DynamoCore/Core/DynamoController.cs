@@ -7,23 +7,23 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Threading;
-using Dynamo.Core;
 using Dynamo.DSEngine;
 using Dynamo.FSchemeInterop;
+using Dynamo.Interfaces;
 using Dynamo.Models;
 using Dynamo.PackageManager;
 using Dynamo.Selection;
 using Dynamo.Services;
+using Dynamo.UI;
 using Dynamo.Units;
+using Dynamo.UpdateManager;
 using Dynamo.Utilities;
 using Dynamo.ViewModels;
-
+using DynamoUnits;
 using Microsoft.Practices.Prism.ViewModel;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using String = System.String;
 using DynCmd = Dynamo.ViewModels.DynamoViewModel;
-using Dynamo.UI;
 
 namespace Dynamo
 {
@@ -75,22 +75,14 @@ namespace Dynamo
         public InfoBubbleViewModel InfoBubbleViewModel { get; internal set; }
         public DynamoModel DynamoModel { get; set; }
         public Dispatcher UIDispatcher { get; set; }
+        public IUpdateManager UpdateManager { get; set; }
+        public IUnitsManager UnitsManager { get; set; }
+        public IWatchHandler WatchHandler { get; set; }
+        public IPreferences PreferenceSettings { get; set; }
 
         public virtual VisualizationManager VisualizationManager
         {
             get { return visualizationManager ?? (visualizationManager = new VisualizationManagerASM()); }
-        }
-
-        private PreferenceSettings _preferenceSettings;
-        public PreferenceSettings PreferenceSettings
-        {
-            get
-            {
-                if (_preferenceSettings == null)
-                    _preferenceSettings = PreferenceSettings.Load();
-
-                return _preferenceSettings;
-            }
         }
 
         /// <summary>
@@ -211,17 +203,17 @@ namespace Dynamo
 
         public static DynamoController MakeSandbox(string commandFilePath = null)
         {
-            ExecutionEnvironment env = new ExecutionEnvironment();
+            var env = new ExecutionEnvironment();
 
             // If a command file path is not specified or if it is invalid, then fallback.
             if (string.IsNullOrEmpty(commandFilePath) || (File.Exists(commandFilePath) == false))
-                return new DynamoController(env, typeof(DynamoViewModel), "None");
+                return new DynamoController(env, typeof(DynamoViewModel), "None", new UpdateManager.UpdateManager(), new UnitsManager(), new DefaultWatchHandler(), Dynamo.PreferenceSettings.Load());
 
-            return new DynamoController(env, typeof(DynamoViewModel), "None", commandFilePath);
+            return new DynamoController(env, typeof(DynamoViewModel), "None", commandFilePath, new UpdateManager.UpdateManager(), new UnitsManager(), new DefaultWatchHandler(), Dynamo.PreferenceSettings.Load());
         }
 
-        public DynamoController(ExecutionEnvironment env, Type viewModelType, string context) : 
-            this(env, viewModelType, context, null)
+        public DynamoController(ExecutionEnvironment env, Type viewModelType, string context, IUpdateManager updateManager, IUnitsManager units, IWatchHandler watchHandler, IPreferences preferences) : 
+            this(env, viewModelType, context, null, updateManager, units, watchHandler, preferences)
         {
         }
 
@@ -229,7 +221,7 @@ namespace Dynamo
         ///     Class constructor
         /// </summary>
         public DynamoController(ExecutionEnvironment env,
-            Type viewModelType, string context, string commandFilePath)
+            Type viewModelType, string context, string commandFilePath, IUpdateManager updateManager, IUnitsManager units, IWatchHandler watchHandler, IPreferences preferences)
         {
             DynamoLogger.Instance.StartLogging();
 
@@ -240,12 +232,26 @@ namespace Dynamo
             //Start heartbeat reporting
             InstrumentationLogger.Start();
 
+            PreferenceSettings = preferences;
+            ((PreferenceSettings) PreferenceSettings).PropertyChanged += PreferenceSettings_PropertyChanged;
+
+            UnitsManager = units;
+            UnitsManager.LengthUnit = PreferenceSettings.LengthUnit;
+            UnitsManager.AreaUnit = PreferenceSettings.AreaUnit;
+            UnitsManager.VolumeUnit = PreferenceSettings.VolumeUnit;
+            UnitsManager.NumberFormat = PreferenceSettings.NumberFormat;
+
+            UpdateManager = updateManager;
+            UpdateManager.UpdateDownloaded += updateManager_UpdateDownloaded;
+            UpdateManager.ShutdownRequested += updateManager_ShutdownRequested;
+            UpdateManager.CheckForProductUpdate(new UpdateRequest(new Uri(Configurations.UpdateDownloadLocation),DynamoLogger.Instance, UpdateManager.UpdateDataAvailable));
+
+            WatchHandler = watchHandler;
+
             //create the view model to which the main window will bind
             //the DynamoModel is created therein
             DynamoViewModel = (DynamoViewModel)Activator.CreateInstance(
                 viewModelType, new object[] { this, commandFilePath });
-
-            EngineController = new EngineController(this, false);
 
             // custom node loader
             string directory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -265,6 +271,12 @@ namespace Dynamo
             DynamoViewModel.Model.CurrentWorkspace.X = 0;
             DynamoViewModel.Model.CurrentWorkspace.Y = 0;
 
+            EngineController = new EngineController(this, false);
+            //This is necessary to avoid a race condition by causing a thread join
+            //inside the vm exec
+            //TODO(Luke): Push this into a resync call with the engine controller
+            ResetEngine();
+
             DynamoLogger.Instance.Log(String.Format(
                 "Dynamo -- Build {0}",
                 Assembly.GetExecutingAssembly().GetName().Version));
@@ -283,16 +295,36 @@ namespace Dynamo
             AddPythonBindings();
 
             MigrationManager.Instance.MigrationTargets.Add(typeof(WorkspaceMigrations));
+        }
 
-            var updateManager = UpdateManager.UpdateManager.CreateInstance(DynamoLogger.Instance);
-            //updateManager.CheckForProductUpdate();
-            updateManager.UpdateDownloaded += updateManager_UpdateDownloaded;
-            updateManager.ShutdownRequested += updateManager_ShutdownRequested;
+        /// <summary>
+        /// Responds to property update notifications on the preferences,
+        /// and synchronizes with the Units Manager.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void PreferenceSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case "LengthUnit":
+                    UnitsManager.LengthUnit = PreferenceSettings.LengthUnit;
+                    break;
+                case "AreaUnit":
+                    UnitsManager.AreaUnit = PreferenceSettings.AreaUnit;
+                    break;
+                case "VolumeUnit":
+                    UnitsManager.VolumeUnit = PreferenceSettings.VolumeUnit;
+                    break;
+                case "NumberFormat":
+                    UnitsManager.NumberFormat = PreferenceSettings.NumberFormat;
+                    break;
+            }
         }
 
         void updateManager_UpdateDownloaded(object sender, UpdateManager.UpdateDownloadedEventArgs e)
         {
-            UpdateManager.UpdateManager.Instance.QuitAndInstallUpdate();
+            UpdateManager.QuitAndInstallUpdate();
         }
 
         void updateManager_ShutdownRequested(object sender, EventArgs e)
@@ -300,7 +332,7 @@ namespace Dynamo
             UIDispatcher.Invoke((Action) delegate
             {
                 ShutDown(true);
-                UpdateManager.UpdateManager.Instance.HostApplicationBeginQuit(this, e);
+                UpdateManager.HostApplicationBeginQuit(this, e);
             });
         }
 

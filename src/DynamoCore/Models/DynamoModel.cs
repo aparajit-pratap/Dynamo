@@ -1156,11 +1156,8 @@ namespace Dynamo.Models
             var args = new FunctionNamePromptEventArgs();
             OnRequestsFunctionNamePrompt(this, args);
 
-            //string name = "", category = "";
-            //if (ShowNewFunctionDialog(ref name, ref category))
             if (args.Success)
             {
-                //NewFunction(Guid.NewGuid(), name, category, true);
                 NewCustomNodeWorkspace(Guid.NewGuid(), args.Name, args.Category, args.Description, true);
             }
         }
@@ -1287,7 +1284,11 @@ namespace Dynamo.Models
 #if USE_DSENGINE
             FunctionDescriptor functionItem = (dynSettings.Controller.EngineController.GetFunctionDescriptor(name));
             if (functionItem != null)
+            {
+                if (functionItem.IsVarArg) 
+                    return new DSVarArgFunction(functionItem);
                 return new DSFunction(functionItem);
+            }
 #endif
             if (dynSettings.Controller.BuiltInTypesByName.ContainsKey(name))
             {

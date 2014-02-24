@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,6 +17,7 @@ using Dynamo.Core;
 using Dynamo.Models;
 using Dynamo.UI;
 using Dynamo.UI.Prompts;
+using Dynamo.Units;
 using Dynamo.Utilities;
 using Dynamo.ViewModels;
 using Microsoft.FSharp.Collections;
@@ -33,6 +36,37 @@ using DynCmd = Dynamo.ViewModels.DynamoViewModel;
 
 namespace Dynamo.Nodes
 {
+    public abstract partial class Enum
+    {
+        public void SetupCustomUIElements(object ui)
+        {
+            var nodeUI = ui as dynNodeView;
+
+            var comboBox = new ComboBox
+            {
+                MinWidth = 150,
+                Padding = new Thickness(8),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            nodeUI.inputGrid.Children.Add(comboBox);
+
+            Grid.SetColumn(comboBox, 0);
+            Grid.SetRow(comboBox, 0);
+
+            comboBox.ItemsSource = this.Items;
+            comboBox.SelectedIndex = this.SelectedIndex;
+
+            comboBox.SelectionChanged += delegate
+            {
+                if (comboBox.SelectedIndex == -1) return;
+                this.RequiresRecalc = true;
+                this.SelectedIndex = comboBox.SelectedIndex;
+            };
+        }
+    }
+
     public abstract partial class VariableInput
     {
         public void SetupCustomUIElements(dynNodeView nodeUI)
@@ -299,15 +333,27 @@ namespace Dynamo.Nodes
             Grid.SetRow(tb, 0);
 
             tb.DataContext = this;
-            tb.BindToProperty(
-                new Binding("Value")
-                {
-                    Mode = BindingMode.TwoWay,
-                    Converter = new DoubleInputDisplay(),
-                    NotifyOnValidationError = false,
-                    Source = this,
-                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit
-                });
+
+            tb.BindToProperty(new System.Windows.Data.Binding("Value")
+            {
+                Mode = BindingMode.TwoWay,
+                Converter = new DoubleInputDisplay(),
+                NotifyOnValidationError = false,
+                Source = this,
+                UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+            });
+
+            ((PreferenceSettings)Controller.PreferenceSettings).PropertyChanged += Preferences_PropertyChanged;
+        }
+
+        void Preferences_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case "NumberFormat":
+                    RaisePropertyChanged("Value");
+                    break;
+            }
         }
 
         protected override bool UpdateValueCore(string name, string value)
@@ -322,37 +368,99 @@ namespace Dynamo.Nodes
         }
     }
 
-    //public partial class AngleInput : DoubleInput
-    //{
+    public partial class Function
+    {
+        public void SetupCustomUIElements(object ui)
+        {
+            var nodeUI = ui as dynNodeView;
 
-    //    public override void InitializeUI(object ui)
-    //    {
-    //        var nodeUI = ui as dynNodeView;
+            nodeUI.MainContextMenu.Items.Add(new System.Windows.Controls.Separator());
 
-    //        //add a text box to the input grid of the control
-    //        var tb = new dynTextBox();
-    //        tb.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
-    //        tb.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-    //        nodeUI.inputGrid.Children.Add(tb);
-    //        System.Windows.Controls.Grid.SetColumn(tb, 0);
-    //        System.Windows.Controls.Grid.SetRow(tb, 0);
-    //        tb.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF));
+            // edit contents
+            var editItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "Edit Custom Node...",
+                IsCheckable = false
+            };
+            nodeUI.MainContextMenu.Items.Add(editItem);
+            editItem.Click += (sender, args) => GoToWorkspace(nodeUI.ViewModel);
 
-    //        tb.DataContext = this;
-    //        var bindingVal = new System.Windows.Data.Binding("Value")
-    //        {
-    //            Mode = BindingMode.TwoWay,
-    //            Converter = new RadianToDegreesConverter(),
-    //            NotifyOnValidationError = false,
-    //            Source = this,
-    //            UpdateSourceTrigger = UpdateSourceTrigger.Explicit
-    //        };
-    //        tb.SetBinding(TextBox.TextProperty, bindingVal);
-    //    }
+            // edit properties
+            var editPropertiesItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "Edit Custom Node Properties...",
+                IsCheckable = false
+            };
+            nodeUI.MainContextMenu.Items.Add(editPropertiesItem);
+            editPropertiesItem.Click += (sender, args) => EditCustomNodeProperties();
 
-    //}
+            // publish
+            var publishCustomNodeItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "Publish This Custom Node...",
+                IsCheckable = false
+            };
+            nodeUI.MainContextMenu.Items.Add(publishCustomNodeItem);
+            publishCustomNodeItem.Click += (sender, args) =>
+            {
+                GoToWorkspace(nodeUI.ViewModel);
+                if (dynSettings.Controller.DynamoViewModel.PublishCurrentWorkspaceCommand.CanExecute(null))
+                {
+                    dynSettings.Controller.DynamoViewModel.PublishCurrentWorkspaceCommand.Execute(null);
+                } 
+            };
 
-    public partial class DoubleSliderInput
+            nodeUI.UpdateLayout();
+        }
+
+        private void EditCustomNodeProperties()
+        {
+            var workspace = this.Definition.WorkspaceModel;
+
+            // copy these strings
+            var newName = workspace.Name.Substring(0);
+            var newCategory = workspace.Category.Substring(0);
+            var newDescription = workspace.Description.Substring(0);
+
+            var args = new FunctionNamePromptEventArgs
+            {
+                Name = newName,
+                Description = newDescription,
+                Category = newCategory,
+                CanEditName = false
+            };
+
+            dynSettings.Controller.DynamoModel.OnRequestsFunctionNamePrompt(this, args);
+
+            if (args.Success)
+            {
+                if (workspace is CustomNodeWorkspaceModel)
+                {
+                    var def = (workspace as CustomNodeWorkspaceModel).CustomNodeDefinition;
+                    dynSettings.CustomNodeManager.Refactor(def.FunctionId, args.CanEditName ? args.Name : workspace.Name, args.Category, args.Description);
+                }
+
+                if (args.CanEditName) workspace.Name = args.Name;
+                workspace.Description = args.Description;
+                workspace.Category = args.Category;
+
+                workspace.Save();
+            }
+        }
+
+        private void GoToWorkspace( NodeViewModel viewModel )
+        {
+            if (viewModel == null) return;
+
+            if (viewModel.GotoWorkspaceCommand.CanExecute(null))
+            {
+                viewModel.GotoWorkspaceCommand.Execute(null);
+            }
+        }
+
+    }  
+
+    public partial class DoubleSliderInput : Double
     {
         public override void SetupCustomUIElements(dynNodeView nodeUI)
         {
@@ -791,7 +899,11 @@ namespace Dynamo.Nodes
     {
         public void SetupCustomUIElements(dynNodeView nodeUI)
         {
-            base.InitializeUI(nodeUI);
+            // Do not call 'NodeModel.InitializeUI' here since it will cause 
+            // that method to dispatch the call back to 'SetupCustomUIElements'
+            // method, resulting in an eventual stack overflow.
+            // 
+            // base.InitializeUI(nodeUI);
 
             //add a drop down list to the window
             var combo = new ComboBox
@@ -985,20 +1097,20 @@ namespace Dynamo.Nodes
     {
         public void SetupCustomUIElements(dynNodeView nodeUI)
         {
-            watchTree = new WatchTree();
+            _watchTree = new WatchTree();
 
-            nodeUI.grid.Children.Add(watchTree);
-            watchTree.SetValue(Grid.RowProperty, 2);
-            watchTree.SetValue(Grid.ColumnSpanProperty, 3);
-            watchTree.Margin = new Thickness(5, 0, 5, 5);
+            nodeUI.grid.Children.Add(_watchTree);
+            _watchTree.SetValue(Grid.RowProperty, 2);
+            _watchTree.SetValue(Grid.ColumnSpanProperty, 3);
+            _watchTree.Margin = new Thickness(5, 0, 5, 5);
 
             if (Root == null)
-                Root = new WatchNode();
-            watchTree.DataContext = Root;
+                Root = new WatchItem();
+            _watchTree.DataContext = Root;
 
             RequestBindingUnhook += delegate
             {
-                BindingOperations.ClearAllBindings(watchTree.treeView1);
+                BindingOperations.ClearAllBindings(_watchTree.treeView1);
             };
 
             RequestBindingRehook += delegate
@@ -1008,11 +1120,69 @@ namespace Dynamo.Nodes
                     Mode = BindingMode.TwoWay,
                     Source = Root,
                 };
-                watchTree.treeView1.SetBinding(ItemsControl.ItemsSourceProperty, sourceBinding);
+                _watchTree.treeView1.SetBinding(ItemsControl.ItemsSourceProperty, sourceBinding);
             };
 
+            var checkedBinding = new Binding("ShowRawData")
+            {
+                Mode = BindingMode.TwoWay,
+                Source = Root
+            };
+
+            var rawDataMenuItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "Show Raw Data", 
+                IsCheckable = true,
+            };
+            rawDataMenuItem.SetBinding(System.Windows.Controls.MenuItem.IsCheckedProperty, checkedBinding);
+
+            nodeUI.MainContextMenu.Items.Add(rawDataMenuItem);
+
+            ((PreferenceSettings)dynSettings.Controller.PreferenceSettings).PropertyChanged += PreferenceSettings_PropertyChanged;
+
+            Root.PropertyChanged += Root_PropertyChanged;
         }
 
+        void Root_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "ShowRawData")
+            {
+                ResetWatch();
+            }
+        }
+
+        void PreferenceSettings_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            //if the units settings have been modified in the UI, watch has
+            //to immediately update to show unit objects in the correct format
+            if (e.PropertyName == "LengthUnit" ||
+                e.PropertyName == "AreaUnit" ||
+                e.PropertyName == "VolumeUnit" ||
+                e.PropertyName == "NumberFormat")
+            {
+                ResetWatch();
+            }
+        }
+
+        private void ResetWatch()
+        {
+            int count = 0;
+            DispatchOnUIThread(
+                delegate
+                {
+                    //unhook the binding
+                    OnRequestBindingUnhook(EventArgs.Empty);
+
+                    Root.Children.Clear();
+
+                    Root.Children.Add(GetWatchNode());
+
+                    count++;
+
+                    //rehook the binding
+                    OnRequestBindingRehook(EventArgs.Empty);
+                });
+        }
     }
 
     public partial class StringDirectory
@@ -1057,6 +1227,87 @@ namespace Dynamo.Nodes
             }
 
             return base.UpdateValueCore(name, value);
+        }
+    }
+
+    public abstract partial class MeasurementInputBase
+    {
+        public void SetupCustomUIElements(object ui)
+        {
+            var nodeUI = ui as dynNodeView;
+
+            //add an edit window option to the 
+            //main context window
+            var editWindowItem = new System.Windows.Controls.MenuItem();
+            editWindowItem.Header = "Edit...";
+            editWindowItem.IsCheckable = false;
+
+            nodeUI.MainContextMenu.Items.Add(editWindowItem);
+
+            editWindowItem.Click += new RoutedEventHandler(editWindowItem_Click);
+            //add a text box to the input grid of the control
+            var tb = new DynamoTextBox();
+            tb.HorizontalAlignment = HorizontalAlignment.Stretch;
+            tb.VerticalAlignment = VerticalAlignment.Center;
+            nodeUI.inputGrid.Children.Add(tb);
+            Grid.SetColumn(tb, 0);
+            Grid.SetRow(tb, 0);
+            tb.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF));
+
+            tb.DataContext = this;
+            tb.BindToProperty(new System.Windows.Data.Binding("Value")
+            {
+                Mode = BindingMode.TwoWay,
+                Converter = new Controls.MeasureConverter(),
+                ConverterParameter = _measure,
+                NotifyOnValidationError = false,
+                Source = this,
+                UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+            });
+
+            tb.OnChangeCommitted += delegate { RequiresRecalc = true; };
+
+            ((PreferenceSettings)dynSettings.Controller.PreferenceSettings).PropertyChanged += PreferenceSettings_PropertyChanged;
+        }
+
+        void PreferenceSettings_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "AreaUnit" ||
+                e.PropertyName == "VolumeUnit" ||
+                e.PropertyName == "LengthUnit" ||
+                e.PropertyName == "NumberFormat")
+            {
+                RaisePropertyChanged("Value");
+                RequiresRecalc = true;
+            }
+        }
+
+        protected override bool UpdateValueCore(string name, string value)
+        {
+            if (name == "Value")
+            {
+                var converter = new Controls.MeasureConverter();
+                this.Value = ((double)converter.ConvertBack(value, typeof(double), _measure, null));
+                return true; // UpdateValueCore handled.
+            }
+
+            return base.UpdateValueCore(name, value);
+        }
+
+        private void editWindowItem_Click(object sender, RoutedEventArgs e)
+        {
+            var editWindow = new EditWindow() { DataContext = this };
+            editWindow.BindToProperty(null, new System.Windows.Data.Binding("Value")
+            {
+                Mode = BindingMode.TwoWay,
+                Converter = new Controls.MeasureConverter(),
+                ConverterParameter = _measure,
+                NotifyOnValidationError = false,
+                Source = this,
+                UpdateSourceTrigger = UpdateSourceTrigger.Explicit
+            });
+
+            editWindow.ShowDialog();
         }
     }
 

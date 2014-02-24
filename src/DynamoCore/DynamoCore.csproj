@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets">
-    <Import Project="$(SolutionDir)Dynamo.CS.props" />
+    <Import Project="$(SolutionDir)/Config/CS.props" />
   </ImportGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -104,29 +104,17 @@ limitations under the License.
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(NunitPath)\nunit.framework.dll</HintPath>
     </Reference>
+    <Reference Include="ProtoGeometry, Version=0.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\extern\ProtoGeometry\ProtoGeometry.dll</HintPath>
+    </Reference>
+    <Reference Include="ProtoInterface, Version=0.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\extern\ProtoGeometry\ProtoInterface.dll</HintPath>
+    </Reference>
     <Reference Include="RestSharp, Version=104.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\extern\greg\RestSharp.dll</HintPath>
-    </Reference>
-    <Reference Include="ProtoInterface">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\extern\DesignScript\ProtoInterface.dll</HintPath>
-    </Reference>
-    <Reference Include="ProtoCore">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\extern\DesignScript\ProtoCore.dll</HintPath>
-    </Reference>
-    <Reference Include="ProtoScript">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\extern\DesignScript\ProtoScript.dll</HintPath>
-    </Reference>
-    <Reference Include="GraphToDSCompiler">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\extern\DesignScript\GraphToDSCompiler.dll</HintPath>
-    </Reference>
-    <Reference Include="DesignScriptStudio.Renderer">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\extern\DesignScript\DesignScriptStudio.Renderer.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -156,6 +144,18 @@ limitations under the License.
     <Compile Include="Core\UndoRedoRecorder.cs" />
     <Compile Include="DSEngine\AstToNode.cs" />
     <Compile Include="DSEngine\DfsTraverseAst.cs" />
+    <Compile Include="Nodes\CustomNodeInstance.cs" />
+    <Compile Include="Interfaces\ILogger.cs" />
+    <Compile Include="Interfaces\IPreferences.cs" />
+    <Compile Include="Interfaces\IWatchHandler.cs" />
+    <Compile Include="Nodes\dynEnum.cs" />
+    <Compile Include="Nodes\VariableInputNode.cs" />
+    <Compile Include="UI\Controls\GraphUpdateNotificationControl.xaml.cs">
+      <DependentUpon>GraphUpdateNotificationControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Views\AboutWindow.xaml.cs">
+      <DependentUpon>AboutWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\Configurations.cs" />
     <Compile Include="DSEngine\AstBuilder.cs" />
     <Compile Include="DSEngine\DSLibrary.cs" />
@@ -217,6 +217,7 @@ limitations under the License.
     <Compile Include="UpdateManager\BinaryVersion.cs" />
     <Compile Include="UpdateManager\UpdateManager.cs" />
     <Compile Include="Utilities\CursorLibrary.cs" />
+    <Compile Include="Utilities\MathUtils.cs" />
     <Compile Include="Utilities\XmlHelper.cs" />
     <Compile Include="ViewModels\EndlessGridViewModel.cs" />
     <Compile Include="ViewModels\InfoBubbleViewModel.cs" />
@@ -418,18 +419,38 @@ limitations under the License.
     </Resource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DynamoUnits\DynamoUnits.csproj">
-      <Project>{6e0a079e-85f1-45a1-ad5b-9855e4344809}</Project>
-      <Name>DynamoUnits</Name>
+    <ProjectReference Include="..\Engine\GraphToDSCompiler\GraphToDSCompiler.csproj">
+      <Project>{593be9fc-7482-4cd6-9f87-77e7ac5cdff2}</Project>
+      <Name>GraphToDSCompiler</Name>
     </ProjectReference>
-    <ProjectReference Include="..\DynamoUnits\DynamoUnits.csproj">
-      <Project>{6E0A079E-85F1-45A1-AD5B-9855E4344809}</Project>
-      <Name>DynamoUnits</Name>
+    <ProjectReference Include="..\Engine\ProtoCore\ProtoCore.csproj">
+      <Project>{7a9e0314-966f-4584-baa3-7339cbb849d1}</Project>
+      <Name>ProtoCore</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Engine\ProtoScript\ProtoScript.csproj">
+      <Project>{a4794476-7d0e-41c0-ad83-4ab929c0a46c}</Project>
+      <Name>ProtoScript</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Legacy\FSchemeInterop\FSchemeInterop2012.csproj">
+      <Project>{126c6420-c7a2-43b0-8b08-206c6c4c1348}</Project>
+      <Name>FSchemeInterop2012</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Legacy\FScheme\FScheme.2012.fsproj">
+      <Project>{f0e5a3e5-bdd0-41ae-848e-ded9efc5fa7f}</Project>
+      <Name>FScheme.2012</Name>
     </ProjectReference>
     <ProjectReference Include="..\DynamoUtilities\DynamoUtilities.csproj">
       <Project>{B5F435CB-0D8A-40B1-A4F7-5ECB3CE792A9}</Project>
       <Name>DynamoUtilities</Name>
       <Private>False</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Libraries\DynamoUnits\Units.csproj">
+      <Project>{6e0a079e-85f1-45a1-ad5b-9855e4344809}</Project>
+      <Name>Units</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Render\DesignScriptStudio.Renderer\DesignScriptStudio.Renderer.vcxproj">
+      <Project>{a69e7467-7a33-4242-aea2-984b41130f54}</Project>
+      <Name>DesignScriptStudio.Renderer</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -461,6 +482,14 @@ limitations under the License.
     <Resource Include="UI\Images\search_24.png" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="UI\Controls\GraphUpdateNotificationControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\Views\AboutWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="UI\Controls\ShortcutToolbar.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -684,12 +713,36 @@ limitations under the License.
   <ItemGroup>
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="UI\Images\AboutWindow\dynamo_logo_dark.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="UI\Images\AboutWindow\aboutback.png" />
+    <Resource Include="UI\Images\AboutWindow\autodeskLogo.png" />
+    <Resource Include="UI\Images\AboutWindow\background_texture.png" />
+    <Resource Include="UI\Images\Update\clickbox.png" />
+    <Resource Include="UI\Images\AboutWindow\close_hover.png" />
+    <Resource Include="UI\Images\AboutWindow\close_inactive.png" />
+    <Resource Include="UI\Images\AboutWindow\collectinfo_titlebar.png" />
+    <Resource Include="UI\Images\AboutWindow\DesignScriptLogo.png" />
+    <Resource Include="UI\Images\Update\DownloadAnimation.png" />
+    <Resource Include="UI\Images\Update\DownloadIcon.png" />
+    <Resource Include="UI\Images\Update\download_ani.png" />
+    <Resource Include="UI\Images\Update\update.png" />
+    <Resource Include="UI\Images\Update\update_static.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="UI\Images\AboutWindow\logo_about.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(SolutionDir)..\extern\DesignScript\*" "$(OutputPath)"
-mkdir "$(OutputPath)\dll"
-copy /Y "$(SolutionDir)..\extern\DynamoAsm\*" "$(OutputPath)\dll"
-copy /Y "$(SolutionDir)..\extern\DynamoAsm\LibG.ProtoInterface.dll" "$(OutputPath)"</PostBuildEvent>
+    <PostBuildEvent>mkdir "$(OutputPath)\dll"
+copy /Y "$(SolutionDir)..\extern\LibG\x64\Release\*" "$(OutputPath)\dll"
+</PostBuildEvent>
+    <PostBuildEvent>mkdir "$(OutputPath)\dll"
+copy /Y "$(SolutionDir)..\extern\LibG\x64\Release\*" "$(OutputPath)\dll"
+copy /Y "$(SolutionDir)..\extern\ProtoGeometry\*" "$(OutputPath)"
+copy "$(SolutionDir)..\doc\distrib\License.rtf" "$(OutputPath).\License.rtf"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

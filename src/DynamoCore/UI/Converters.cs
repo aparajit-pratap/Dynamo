@@ -16,6 +16,7 @@ using Dynamo.ViewModels;
 using Dynamo.PackageManager;
 using System.Windows.Controls;
 using Dynamo.Core;
+using ProtoCore.AST.ImperativeAST;
 
 namespace Dynamo.Controls
 {
@@ -1043,9 +1044,9 @@ namespace Dynamo.Controls
             double dbl;
             if (double.TryParse(value as string, NumberStyles.Any, CultureInfo.InvariantCulture, out dbl))
             {
-                return(dbl.ToString("0.000", CultureInfo.InvariantCulture));
+                return(dbl.ToString(dynSettings.Controller.PreferenceSettings.NumberFormat, CultureInfo.InvariantCulture));
             }
-            return value ?? "0.000";
+            return value ?? 0.ToString(dynSettings.Controller.PreferenceSettings.NumberFormat);
         }
 
         public override object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -1166,6 +1167,7 @@ namespace Dynamo.Controls
             throw new NotImplementedException();
         }
     }
+
     public sealed class WarningLevelToColorConverter:IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -1276,40 +1278,68 @@ namespace Dynamo.Controls
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            SIUnit measure = null;
-
-            if (parameter is Length)
-            {
-                measure = new Length((double)value);
-            }
-            else if (parameter is Area)
-            {
-                measure = new Area((double)value);
-            }
-            else if (parameter is Volume)
-            {
-                measure = new Volume((double)value);
-            }
-            return measure.ToString();
+            return parameter.ToString();
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            SIUnit measure = null;
-            if (parameter is Length)
-            {
-                measure = new Length(0.0);
-            }
-            else if (parameter is Area)
-            {
-                measure = new Area(0.0);
-            }
-            else if (parameter is Volume)
-            {
-                measure = new Volume(0.0);
-            }
+            var measure = (SIUnit) parameter;
             measure.SetValueFromString(value.ToString());
             return measure.Value;
+        }
+    }
+
+    public class IsUpdateAvailableToTextConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if ((bool) value == true)
+            {
+                var latest = dynSettings.Controller.UpdateManager.AvailableVersion;
+                return latest;
+            }
+
+            return "(Up-to-date)";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
+
+    public class IsUpdateAvailableBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            SolidColorBrush brush;
+
+            brush = (bool) value
+                ? (SolidColorBrush)
+                    SharedDictionaryManager.DynamoColorsAndBrushesDictionary["UpdateManagerUpdateAvailableBrush"]
+                : (SolidColorBrush) SharedDictionaryManager.DynamoColorsAndBrushesDictionary["UpdateManagerUpToDateBrush"];
+                
+            return brush;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
+
+    public class NumberFormatToBoolConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if(parameter.ToString() == dynSettings.Controller.PreferenceSettings.NumberFormat)
+                return true;
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
         }
     }
 }
