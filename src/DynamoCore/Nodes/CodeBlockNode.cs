@@ -125,6 +125,21 @@ namespace Dynamo.Nodes
             return cbn.inputIdentifiers.IndexOf(variableName);
         }
 
+        public int GetOutportIndex(string variableName)
+        {
+            for (int i = 0; i < codeStatements.Count; i++)
+            {
+                Statement s = codeStatements[i];
+                if (RequiresOutPort(s, i))
+                {
+                    List<string> varNames = Statement.GetDefinedVariableNames(s, true);
+                    if (varNames.Contains(variableName))
+                        return i;
+                }
+            }
+            return -1;
+        }
+
         #endregion
 
         #region Properties

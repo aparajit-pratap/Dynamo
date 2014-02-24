@@ -51,6 +51,10 @@ namespace Dynamo.DSEngine
                 else
                 {
                     // ModifyNode
+                    // 1. Search for existing node with same symbol name
+                    // 2. Delete the node (inputs and outputs are disconnected)
+                    // 3. Create new node of RHS type and having same name
+                    // 4. Reconnect connectors
                     throw new NotImplementedException("Modify node is not implemented yet");
                 }
                 
@@ -92,7 +96,7 @@ namespace Dynamo.DSEngine
             }
         }
 
-        private Guid ConnectOrCreateIdentifierNode(IdentifierNode iNode, Guid funcNodeId, int endPortIndex)
+        protected Guid ConnectOrCreateIdentifierNode(IdentifierNode iNode, Guid funcNodeId, int endPortIndex)
         {
             if (iNode == null)
                 throw new ArgumentNullException("iNode");
@@ -116,7 +120,7 @@ namespace Dynamo.DSEngine
                 // Make connection
                 if (nModel is CodeBlockNodeModel)
                 {
-                    int startPortIndex = CodeBlockNodeModel.GetInportIndex(nModel as CodeBlockNodeModel, nodeName);
+                    int startPortIndex = (nModel as CodeBlockNodeModel).GetOutportIndex(nodeName);
                     CreateConnection(nodeID, startPortIndex, funcNodeId, endPortIndex);
                 }
                 else
@@ -128,7 +132,7 @@ namespace Dynamo.DSEngine
         }
 
 
-        private void CreateNodeFromRightNode(BinaryExpressionNode bNode, MethodMirror methodMirror)
+        virtual protected void CreateNodeFromRightNode(BinaryExpressionNode bNode, MethodMirror methodMirror)
         {
             // DFS traverse rightnode to find its leaf nodes
             // Leaf nodes can be either primitives or identifiers
@@ -138,23 +142,31 @@ namespace Dynamo.DSEngine
             if (iNode == null)
                 throw new Exception("Left node must be an IdentifierNode.");
 
-            if (!(bNode.RightNode is FunctionDotCallNode || bNode.RightNode is IdentifierListNode))
-                throw new NotImplementedException("AST nodes other than Function calls are not supported yet");
+            //bool isInstanceMethod = true;
+            //Guid funcNodeId = Guid.Empty;
+            //if(bNode.RightNode is FunctionDotCallNode || bNode.RightNode is IdentifierListNode)      
+            //{
+            //    if (methodMirror == null)
+            //        throw new NotImplementedException("Method mirror cannot be null for function call");
 
-            if(methodMirror == null)
-                throw new NotImplementedException("AST nodes other than Function calls are not supported yet");
+            //    funcNodeId = CreateFunctionNode(iNode, methodMirror);
 
-            Guid funcNodeId = CreateFunctionNode(iNode, methodMirror);
+            //    if (methodMirror.IsConstructor || methodMirror.IsStatic)
+            //        isInstanceMethod = false;
+            //}            
+            //else
+            //{
+            //    throw new NotImplementedException("AST nodes other than Function calls and array are not supported yet");
+            //}
 
-            // TODO: this assumes that these are single function calls and not chained calls
+            // TODO: this assumes that these are single function calls (and not nested or chained calls) 
+            // or primitive/identifier array nodes
             // therefore return the argument nodes which for the time-being will be either primitives or identifiers only
-            bool isInstanceMethod = true;
-            if (methodMirror.IsConstructor || methodMirror.IsStatic)
-                isInstanceMethod = false;
-
-            DfsTraverseAst traversal = new DfsTraverseAst(isInstanceMethod);
-            AssociativeNode astNode = bNode.RightNode;
-            traversal.DFSTraverse(ref astNode);
+            //DfsTraverseAst traversal = new DfsTraverseAst(isInstanceMethod);
+            //AssociativeNode astNode = bNode.RightNode;
+            //traversal.DFSTraverse(ref astNode);
+            DfsTraverseAst traversal = new DfsTraverseAst(bNode, methodMirror);
+            traversal.DFSTraverse();
             List<AssociativeNode> leafNodes = traversal.LeafNode;
 
             // Create primitive nodes
@@ -164,13 +176,13 @@ namespace Dynamo.DSEngine
                 if (node is IdentifierNode)
                 {
                     // search for identifier in graph
-                    Guid inputId = ConnectOrCreateIdentifierNode(node as IdentifierNode, funcNodeId, portCount++);                    
+                    Guid inputId = ConnectOrCreateIdentifierNode(node as IdentifierNode, traversal.DynamoNodeID, portCount++);                    
                 }
                 else if(node is DoubleNode || node is IntNode)
                 {
                     // Create Number node
-                    System.Guid inputId = CreatePrimitiveNode("Number", node);                    
-                    CreateConnection(inputId, 0, funcNodeId, portCount++);                                        
+                    System.Guid inputId = CreatePrimitiveNode("Number", node);
+                    CreateConnection(inputId, 0, traversal.DynamoNodeID, portCount++);                                        
                 }
                 else
                     throw new NotImplementedException("AST input node other than double and integer are not supported yet");
@@ -178,47 +190,7 @@ namespace Dynamo.DSEngine
 
         }
 
-        private string GetMangledName(MethodMirror methodMirror)
-        {
-            string mangledName = string.Empty;
-            ClassMirror type = methodMirror.GetClass();
-            if (type == null)
-                throw new NotImplementedException("Global functions are not supported yet.");
-
-            string funcName = methodMirror.MethodName;
-            string argList = string.Empty;
-            List<ProtoCore.Type> argTypes = methodMirror.GetArgumentTypes();
-            if (argTypes.Count > 0)
-            {
-                int i = 0;
-                for (i = 0; i < argTypes.Count - 1; ++i)
-                {
-                    argList += argTypes[i].ToString() + ",";
-                }
-                argList += argTypes[i].ToString();
-                mangledName = string.Format("{0}.{1}@{2}", type.ClassName, funcName, argList);
-            }
-            else
-                mangledName = string.Format("{0}.{1}", type.ClassName, funcName);
-
-            return mangledName;
-        }
-
-        private Guid CreateFunctionNode(IdentifierNode iNode, MethodMirror methodMirror)
-        {
-            string mangledName = GetMangledName(methodMirror);
-            System.Guid funcNodeId = Guid.NewGuid();
-
-            dynSettings.Controller.DynamoViewModel.ExecuteCommand(
-                new DynamoViewModel.CreateNodeCommand(funcNodeId, mangledName, 0, 0, true, true));
-            
-            NodeModel fNode = dynSettings.Controller.DynamoModel.Nodes.Find((x) => (x.GUID == funcNodeId));
-            string nodeName = iNode.Value;
-            fNode.SetAstIdentifier(nodeName);
-            return funcNodeId;
-        }
-
-        private Guid CreatePrimitiveNode(string nodeType, AssociativeNode node)
+        public static Guid CreatePrimitiveNode(string nodeType, AssociativeNode node)
         {
             System.Guid inputId = Guid.NewGuid();
             dynSettings.Controller.DynamoViewModel.ExecuteCommand(
@@ -237,7 +209,7 @@ namespace Dynamo.DSEngine
             return inputId;
         }
 
-        private void CreateConnection(Guid startNodeId, int startPortIndex, Guid endNodeId, int endPortIndex)
+        protected void CreateConnection(Guid startNodeId, int startPortIndex, Guid endNodeId, int endPortIndex)
         {
             dynSettings.Controller.DynamoViewModel.ExecuteCommand(new DynamoViewModel.MakeConnectionCommand(
                             startNodeId, startPortIndex, PortType.OUTPUT, DynamoViewModel.MakeConnectionCommand.Mode.Begin));
@@ -256,7 +228,7 @@ namespace Dynamo.DSEngine
             {
                 if (node is CodeBlockNodeModel)
                 {
-                    var tempVars = (node as CodeBlockNodeModel).TempVariables;
+                    var tempVars = (node as CodeBlockNodeModel).GetDefinedVariableNames();
                     foreach (var tempVar in tempVars)
                     {
                         if (tempVar.Equals(name))

@@ -25,6 +25,7 @@ public:
 
     virtual void Initialize() = 0;
     virtual void StartDynamo() = 0;
+    virtual void StartUI(bool enableDynamicRun) = 0;
     virtual void CreateGraph() = 0;
     virtual void CreateGraphFromAst(AstNode* pAstNode, DesignScriptMethod* pMirror) = 0;
     

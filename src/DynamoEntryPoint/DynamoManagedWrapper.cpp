@@ -29,6 +29,11 @@ void DynamoManagedWrapper::StartDynamo()
     DynamoCSharpWrapper::StartUp();
 }
 
+void DynamoManagedWrapper::StartUI(bool enableDynamicRun)
+{
+    DynamoCSharpWrapper::StartUI(enableDynamicRun);
+}
+
 void DynamoManagedWrapper::CreateGraph()
 {
     DynamoCSharpWrapper::CreateGraph();
@@ -44,6 +49,8 @@ void DynamoManagedWrapper::CreateGraphFromAst(AstNode* pAstNode, DesignScriptMet
         MethodMirrorWrapper* pMirror = dynamic_cast<MethodMirrorWrapper*>(pMethod);
         if(pMirror != NULL)
               DynamoCSharpWrapper::CreateGraphFromAst(astNode, pMirror->wrapper());
+        else
+            DynamoCSharpWrapper::CreateGraphFromAst(astNode, nullptr);
     }
 }
 

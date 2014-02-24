@@ -40,18 +40,24 @@ namespace DynamoWrapper
             Controller.DynamoViewModel.DynamicRunEnabled = true;
         }
 
-        public static void StartUp()
+        public static void StartUI(bool enableDynamicRun)
         {
-            Controller = DynamoController.MakeSandbox();
-
             //create the view   
-            //Controller.DynamoViewModel.DynamicRunEnabled = false;
+            Controller.DynamoViewModel.DynamicRunEnabled = enableDynamicRun;
             Ui = new DynamoView();
             Ui.DataContext = Controller.DynamoViewModel;
             Vm = Controller.DynamoViewModel;
             Model = Controller.DynamoModel;
             Controller.UIDispatcher = Ui.Dispatcher;
             Ui.Show();
+        }
+
+        public static void StartUp()
+        {
+            Controller = DynamoController.MakeSandbox();
+
+            //create the view   
+            StartUI(false);
 
             //SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
         }

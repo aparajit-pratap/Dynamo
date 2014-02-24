@@ -6,18 +6,43 @@ using System.Text;
 // DesignScript
 using ProtoCore;
 using ProtoCore.AST.AssociativeAST;
+using ProtoCore.Mirror;
 using GraphToDSCompiler;
+
+// Dynamo
+using Dynamo.Utilities;
+using Dynamo.Models;
+using Dynamo.ViewModels;
+using Dynamo.Nodes;
 
 namespace Dynamo.DSEngine
 {
     public class DfsTraverseAst : AstCodeBlockTraverse
     {
-        public DfsTraverseAst(bool isInstanceMethod)
+        //public DfsTraverseAst(bool isInstanceMethod)
+        //{
+        //    this.isInstanceMethod = isInstanceMethod;
+        //}
+
+        public DfsTraverseAst(BinaryExpressionNode bNode, MethodMirror methodMirror)
         {
-            this.isInstanceMethod = isInstanceMethod;
+            rootNode = bNode;
+            this.methodMirror = methodMirror;
         }
 
-        private bool isInstanceMethod;
+        //private bool isInstanceMethod;
+        private MethodMirror methodMirror;
+        private BinaryExpressionNode rootNode;
+
+        private Guid dynamoNodeID;
+        public Guid DynamoNodeID
+        {
+            get
+            {
+                return dynamoNodeID;
+            }
+        }
+
         private List<AssociativeNode> leafNodes = new List<AssociativeNode>();
         public List<AssociativeNode> LeafNode
         {
@@ -26,6 +51,14 @@ namespace Dynamo.DSEngine
                 return leafNodes;
             }
         }
+
+        public void DFSTraverse()
+        {
+            AssociativeNode astNode = rootNode.RightNode;
+            base.DFSTraverse(ref astNode);            
+        }
+
+        #region Overrides
 
         protected override void EmitIdentifierNode(ref ProtoCore.AST.AssociativeAST.AssociativeNode identNode)
         {
@@ -66,7 +99,21 @@ namespace Dynamo.DSEngine
             if (dotCall == null)
                 throw new ArgumentNullException("dotCall");
 
-            ProtoCore.AST.AssociativeAST.AssociativeNode identNode = dotCall.DotCall.FormalArguments[0];
+            if (methodMirror == null)
+                throw new Exception("Method mirror cannot be null for function call");
+
+            bool isInstanceMethod = true;
+            if (methodMirror.IsConstructor || methodMirror.IsStatic)
+                isInstanceMethod = false;
+
+            IdentifierNode iNode = rootNode.LeftNode as IdentifierNode;
+            if (iNode == null)
+                throw new Exception("Left node must be an IdentifierNode.");
+
+            dynamoNodeID = CreateFunctionNode(iNode, methodMirror);
+
+            ProtoCore.AST.AssociativeAST.AssociativeNode identNode = dotCall.DotCall.FormalArguments[0];            
+
             if(isInstanceMethod)
                 leafNodes.Add(identNode);
 
@@ -92,6 +139,75 @@ namespace Dynamo.DSEngine
                 ProtoCore.AST.AssociativeAST.AssociativeNode argNode = funcCallNode.FormalArguments[n];
                 leafNodes.Add(argNode);
             }
+        }
+
+        protected override void EmitExprListNode(ref ProtoCore.AST.AssociativeAST.ExprListNode exprListNode)
+        {
+            if (exprListNode == null)
+                throw new ArgumentNullException("exprListNode");
+
+            IdentifierNode iNode = rootNode.LeftNode as IdentifierNode;
+            if (iNode == null)
+                throw new Exception("Left node must be an IdentifierNode.");
+
+            dynamoNodeID = CreateListNode();
+
+            for (int i = 0; i < exprListNode.list.Count; i++)
+            {
+                ProtoCore.AST.AssociativeAST.AssociativeNode node = exprListNode.list[i];
+                // node must be either an Identifier or primitive
+                leafNodes.Add(node);
+            }
+        }
+
+        #endregion
+
+        private string GetMangledName(MethodMirror methodMirror)
+        {
+            string mangledName = string.Empty;
+            ClassMirror type = methodMirror.GetClass();
+            if (type == null)
+                throw new NotImplementedException("Global functions are not supported yet.");
+
+            string funcName = methodMirror.MethodName;
+            string argList = string.Empty;
+            List<ProtoCore.Type> argTypes = methodMirror.GetArgumentTypes();
+            if (argTypes.Count > 0)
+            {
+                int i = 0;
+                for (i = 0; i < argTypes.Count - 1; ++i)
+                {
+                    argList += argTypes[i].ToString() + ",";
+                }
+                argList += argTypes[i].ToString();
+                mangledName = string.Format("{0}.{1}@{2}", type.ClassName, funcName, argList);
+            }
+            else
+                mangledName = string.Format("{0}.{1}", type.ClassName, funcName);
+
+            return mangledName;
+        }
+
+        
+        private Guid CreateFunctionNode(IdentifierNode iNode, MethodMirror methodMirror)
+        {
+            System.Guid funcNodeId = Guid.NewGuid();
+
+            string mangledName = GetMangledName(methodMirror);            
+
+            dynSettings.Controller.DynamoViewModel.ExecuteCommand(
+                new DynamoViewModel.CreateNodeCommand(funcNodeId, mangledName, 0, 0, true, true));
+
+            NodeModel fNode = dynSettings.Controller.DynamoModel.Nodes.Find((x) => (x.GUID == funcNodeId));
+            string nodeName = iNode.Value;
+            fNode.SetAstIdentifier(nodeName);
+            return funcNodeId;
+        }
+
+        private Guid CreateListNode()
+        {
+            System.Guid exprNodeId = AstToNode.CreatePrimitiveNode("Code Block", rootNode); 
+            return exprNodeId;
         }
     }
 }
