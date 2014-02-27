@@ -142,29 +142,9 @@ namespace Dynamo.DSEngine
             if (iNode == null)
                 throw new Exception("Left node must be an IdentifierNode.");
 
-            //bool isInstanceMethod = true;
-            //Guid funcNodeId = Guid.Empty;
-            //if(bNode.RightNode is FunctionDotCallNode || bNode.RightNode is IdentifierListNode)      
-            //{
-            //    if (methodMirror == null)
-            //        throw new NotImplementedException("Method mirror cannot be null for function call");
-
-            //    funcNodeId = CreateFunctionNode(iNode, methodMirror);
-
-            //    if (methodMirror.IsConstructor || methodMirror.IsStatic)
-            //        isInstanceMethod = false;
-            //}            
-            //else
-            //{
-            //    throw new NotImplementedException("AST nodes other than Function calls and array are not supported yet");
-            //}
-
             // TODO: this assumes that these are single function calls (and not nested or chained calls) 
             // or primitive/identifier array nodes
-            // therefore return the argument nodes which for the time-being will be either primitives or identifiers only
-            //DfsTraverseAst traversal = new DfsTraverseAst(isInstanceMethod);
-            //AssociativeNode astNode = bNode.RightNode;
-            //traversal.DFSTraverse(ref astNode);
+            // therefore return the argument nodes which for the time-being will be either primitives or identifiers only            
             DfsTraverseAst traversal = new DfsTraverseAst(bNode, methodMirror);
             traversal.DFSTraverse();
             List<AssociativeNode> leafNodes = traversal.LeafNode;

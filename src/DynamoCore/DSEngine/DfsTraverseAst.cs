@@ -19,18 +19,12 @@ namespace Dynamo.DSEngine
 {
     public class DfsTraverseAst : AstCodeBlockTraverse
     {
-        //public DfsTraverseAst(bool isInstanceMethod)
-        //{
-        //    this.isInstanceMethod = isInstanceMethod;
-        //}
-
         public DfsTraverseAst(BinaryExpressionNode bNode, MethodMirror methodMirror)
         {
             rootNode = bNode;
             this.methodMirror = methodMirror;
         }
 
-        //private bool isInstanceMethod;
         private MethodMirror methodMirror;
         private BinaryExpressionNode rootNode;
 

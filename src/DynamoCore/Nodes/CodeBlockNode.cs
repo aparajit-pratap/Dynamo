@@ -125,6 +125,11 @@ namespace Dynamo.Nodes
             return cbn.inputIdentifiers.IndexOf(variableName);
         }
 
+        /// <summary>
+        ///  Returns the corresponding output port index for a given a defined variable 
+        /// </summary>
+        /// <param name="variableName"></param>
+        /// <returns></returns>
         public int GetOutportIndex(string variableName)
         {
             for (int i = 0; i < codeStatements.Count; i++)
