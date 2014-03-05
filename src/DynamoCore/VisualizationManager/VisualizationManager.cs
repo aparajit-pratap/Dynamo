@@ -373,9 +373,14 @@ namespace Dynamo
             isUpdating = true;
             var worker = new BackgroundWorker();
             worker.DoWork += VisualizationUpdateThread;
+            worker.RunWorkerCompleted += VisualizationWorkerCompleted;
 
-            if(dynSettings.Controller.Testing)
-                VisualizationUpdateThread(null,null);
+            if (dynSettings.Controller.Testing)
+            {
+                VisualizationUpdateThread(null, null);
+                OnVisualizationUpdateComplete(this, EventArgs.Empty);
+
+            }
             else
                 worker.RunWorkerAsync();
         }
@@ -697,9 +702,6 @@ namespace Dynamo
 
                 sw.Stop();
                 Debug.WriteLine(String.Format("{0} elapsed for generating visualizations.", sw.Elapsed));
-
-                //notify the UI of visualization completion
-                OnVisualizationUpdateComplete(this, EventArgs.Empty);
             }
             catch (Exception e)
             {
@@ -708,6 +710,18 @@ namespace Dynamo
             finally
             {
                 isUpdating = false;
+            }
+        }
+
+        private void VisualizationWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            try
+            {
+                OnVisualizationUpdateComplete(this, EventArgs.Empty);
+            }
+            catch (Exception exception)
+            {
+                DynamoLogger.Instance.Log(exception);
             }
         }
 

@@ -38,28 +38,38 @@ namespace DynamoWrapper
         {
             Controller = DynamoController.MakeSandbox();
             Controller.DynamoViewModel.DynamicRunEnabled = true;
+
+            InitializeUI();
         }
 
         public static void StartUI(bool enableDynamicRun)
         {
             //create the view   
             Controller.DynamoViewModel.DynamicRunEnabled = enableDynamicRun;
-            Ui = new DynamoView();
-            Ui.DataContext = Controller.DynamoViewModel;
-            Vm = Controller.DynamoViewModel;
-            Model = Controller.DynamoModel;
-            Controller.UIDispatcher = Ui.Dispatcher;
-            Ui.Show();
+            
+            if(Ui != null)
+                Ui.Show();
         }
 
         public static void StartUp()
         {
             Controller = DynamoController.MakeSandbox();
 
+            InitializeUI();
+
             //create the view   
             StartUI(false);
 
             //SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+        }
+
+        private static void InitializeUI()
+        {
+            Ui = new DynamoView(true);
+            Ui.DataContext = Controller.DynamoViewModel;
+            Vm = Controller.DynamoViewModel;
+            Model = Controller.DynamoModel;
+            Controller.UIDispatcher = Ui.Dispatcher;
         }
 
         public static void CreateGraphFromAst(AssociativeNode astNode, MethodMirror methodMirror)
