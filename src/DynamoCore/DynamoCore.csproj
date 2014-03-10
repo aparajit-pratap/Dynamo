@@ -128,6 +128,8 @@ limitations under the License.
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\UndoRedoRecorder.cs" />
+    <Compile Include="DSEngine\AstToNode.cs" />
+    <Compile Include="DSEngine\DfsTraverseAst.cs" />
     <Compile Include="Interfaces\ILogger.cs" />
     <Compile Include="Interfaces\IPreferences.cs" />
     <Compile Include="Interfaces\IWatchHandler.cs" />
