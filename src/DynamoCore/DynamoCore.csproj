@@ -132,8 +132,6 @@ limitations under the License.
     <Compile Include="Core\UndoRedoRecorder.cs" />
     <Compile Include="DSEngine\AstToNode.cs" />
     <Compile Include="DSEngine\DfsTraverseAst.cs" />
-    <Compile Include="DSEngine\LibraryCustomization.cs" />
-    <Compile Include="DSEngine\XmlDocumentationExtensions.cs" />
     <Compile Include="Library\DocumentationServices.cs" />
     <Compile Include="Library\LibraryCustomization.cs" />
     <Compile Include="Library\XmlDocumentationExtensions.cs" />
