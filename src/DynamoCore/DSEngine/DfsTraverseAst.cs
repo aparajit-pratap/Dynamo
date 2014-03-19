@@ -94,25 +94,76 @@ namespace Dynamo.DSEngine
                 throw new ArgumentNullException("dotCall");
 
             if (methodMirror == null)
-                throw new Exception("Method mirror cannot be null for function call");
+            {
+                dynamoNodeID = CreateFunctionNodeFromAST(dotCall);
+            }
+            else
+	        {
+                bool isInstanceMethod = true;
+                if (methodMirror.IsConstructor || methodMirror.IsStatic)
+                    isInstanceMethod = false;
 
-            bool isInstanceMethod = true;
-            if (methodMirror.IsConstructor || methodMirror.IsStatic)
-                isInstanceMethod = false;
+                dynamoNodeID = CreateFunctionNode(methodMirror);
 
-            IdentifierNode iNode = rootNode.LeftNode as IdentifierNode;
-            if (iNode == null)
-                throw new Exception("Left node must be an IdentifierNode.");
+                ProtoCore.AST.AssociativeAST.AssociativeNode identNode = dotCall.DotCall.FormalArguments[0];            
 
-            dynamoNodeID = CreateFunctionNode(iNode, methodMirror);
-
-            ProtoCore.AST.AssociativeAST.AssociativeNode identNode = dotCall.DotCall.FormalArguments[0];            
-
-            if(isInstanceMethod)
-                leafNodes.Add(identNode);
+                if(isInstanceMethod)
+                    leafNodes.Add(identNode);
+	        }
+            
 
             ProtoCore.AST.AssociativeAST.FunctionCallNode funcCall = dotCall.FunctionCall;
             EmitFunctionCallNode(ref funcCall);
+        }
+
+        private Guid CreateFunctionNodeFromAST(FunctionDotCallNode dotCallNode)
+        {
+            string mangledName = string.Empty;
+
+            FunctionCallNode dotCall = dotCallNode.DotCall;
+            IdentifierNode identNode = dotCall.FormalArguments[0] as IdentifierNode;
+            if (identNode == null)
+                throw new Exception("First argument of DotCall Node must be an Identifier node");
+
+            string className = identNode.Value;
+            FunctionCallNode funcCallNode = dotCallNode.FunctionCall;
+            string funcName = funcCallNode.Function.Name;
+
+            string argList = string.Empty;
+            foreach (var node in funcCallNode.FormalArguments)
+            {
+                if(node is IntNode)
+                {
+                    argList += "int,";                  
+                }
+                else if (node is DoubleNode)
+                {
+                    argList += "double,";                  
+                }
+                else if (node is BooleanNode)
+                {
+                    argList += "bool,";                  
+                }
+                else if(node is StringNode)
+                {
+                    argList += "string,";                  
+                }
+                else
+                {
+                    throw new NotImplementedException("creating function node not supported w/o mirror for pointer arg types");
+                }
+            }
+            if (string.IsNullOrEmpty(argList))
+            {
+                mangledName = string.Format("{0}.{1}", className, funcName);
+            }
+            else
+            {
+                argList = argList.Substring(0, argList.Length - 1);
+                mangledName = string.Format("{0}.{1}@{2}", className, funcName, argList);
+            }
+
+            return CreateFunctionNodeFromMangledName(mangledName);
         }
 
         protected override void EmitFunctionCallNode(ref ProtoCore.AST.AssociativeAST.FunctionCallNode funcCallNode)
@@ -183,16 +234,25 @@ namespace Dynamo.DSEngine
         }
 
         
-        private Guid CreateFunctionNode(IdentifierNode iNode, MethodMirror methodMirror)
+        private Guid CreateFunctionNode(MethodMirror methodMirror)
+        {
+            string mangledName = GetMangledName(methodMirror);
+
+            return CreateFunctionNodeFromMangledName(mangledName);
+        }
+
+        private Guid CreateFunctionNodeFromMangledName(string mangledName)
         {
             System.Guid funcNodeId = Guid.NewGuid();
-
-            string mangledName = GetMangledName(methodMirror);            
-
             dynSettings.Controller.DynamoViewModel.ExecuteCommand(
                 new DynamoViewModel.CreateNodeCommand(funcNodeId, mangledName, 0, 0, true, true));
 
             NodeModel fNode = dynSettings.Controller.DynamoModel.Nodes.Find((x) => (x.GUID == funcNodeId));
+
+            IdentifierNode iNode = rootNode.LeftNode as IdentifierNode;
+            if (iNode == null)
+                throw new Exception("Left node must be an IdentifierNode.");
+
             string nodeName = iNode.Value;
             fNode.SetAstIdentifier(nodeName);
             return funcNodeId;
