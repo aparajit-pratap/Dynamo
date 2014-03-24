@@ -1,75 +1,141 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
+using Autodesk.DesignScript.Runtime;
 
 namespace DSCore
 {
-    public class DSColor // TODO(Ben): Rename after namespace support is done :)
+    public class Color
     {
-        private Color color = Color.FromArgb(255, 0, 0, 0);
+        private System.Drawing.Color color = System.Drawing.Color.FromArgb(255, 0, 0, 0);
 
         // Exposed only for unit test purposes.
-        internal Color InternalColor { get { return this.color; } }
+        internal System.Drawing.Color InternalColor { get { return this.color; } }
 
+        /// <summary>
+        ///     Find the red component of a color, 0 to 255.
+        /// </summary>
+        /// <returns name="val">Value of the red component.</returns>
+        /// <search>red</search>
         public byte Red
         {
             get { return color.R; }
         }
 
+        /// <summary>
+        ///     Find the green component of a color, 0 to 255.
+        /// </summary>
+        /// <returns name="val">Value of the green component.</returns>
+        /// <search>green</search>
         public byte Green
         {
             get { return color.G; }
         }
 
+        /// <summary>
+        ///     Find the blue component of a color, 0 to 255.
+        /// </summary>
+        /// <returns name="val">Value of the blue component.</returns>
+        /// <search>blue</search>
         public byte Blue
         {
             get { return color.B; }
         }
 
+        /// <summary>
+        ///     Find the alpha component of a color, 0 to 255.
+        /// </summary>
+        /// <returns name="val">Value of the alpha component.</returns>
+        /// <search>alpha</search>
         public byte Alpha
         {
             get { return color.A; }
         }
 
-        private DSColor(int a, int r, int g, int b)
+        private Color(int a, int r, int g, int b)
         {
-            this.color = Color.FromArgb(a, r, g, b);
+            this.color = System.Drawing.Color.FromArgb(a, r, g, b);
         }
 
-        public static DSColor ByARGB(int a, int r, int g, int b)
+        /// <summary>
+        ///     Construct a color by alpha, red, green, and blue components.
+        /// </summary>
+        /// <param name="a">The alpha value.</param>
+        /// <param name="r">The red value.</param>
+        /// <param name="g">The green value.</param>
+        /// <param name="b">The blue value.</param>
+        /// <returns name="color">Color.</returns>
+        /// <search>color</search>
+        public static Color ByARGB(int a, int r, int g, int b)
         {
-            return new DSColor(a, r, g, b);
+            return new Color(a, r, g, b);
         }
 
         // This fails "GraphUtilities.PreloadAssembly", fix later.
         // After fixing, restore "TestConstructorBySystemColor" test case.
         // 
 #if false
-        public static DSColor BySystemColor(System.Drawing.Color c)
+        public static Color BySystemColor(System.Drawing.Color c)
         {
-            return new DSColor(c.A, c.R, c.G, c.B);
+            return new Color(c.A, c.R, c.G, c.B);
         }
 #endif
 
-        public static float Brightness(DSColor c)
+        /// <summary>
+        ///     Gets the birghtness value for this color.
+        /// </summary>
+        /// <returns name="val">Brightness value for the color.</returns>
+        /// <search>brightness</search>
+        public static float Brightness(Color c)
         {
             return c.color.GetBrightness();
         }
 
-        public static float Saturation(DSColor c)
+        /// <summary>
+        ///     Gets the saturation value for this color.
+        /// </summary>
+        /// <returns name="val">Saturation value for the color.</returns>
+        /// <search>saturation</search>
+        public static float Saturation(Color c)
         {
             return c.color.GetSaturation();
         }
 
-        public static float Hue(DSColor c)
+        /// <summary>
+        ///     Gets the hue value for this color.
+        /// </summary>
+        /// <returns name="val">Hue value for the color.</returns>
+        /// <search>hue</search>
+        public static float Hue(Color c)
         {
             return c.color.GetHue();
         }
 
-        public static byte[] Components(DSColor c)
+        /// <summary>
+        ///     Lists the components for the color in the order: alpha, red, green, blue.
+        /// </summary>
+        /// <returns name="val">Saturation value for the color.</returns>
+        /// <search>components,alpha,red,green,blue</search>
+        [MultiReturn(new string[] {"a", "r", "g", "b"})]
+        public static Dictionary<string, byte> Components(Color c)
         {
-            return new byte[] { c.color.A, c.color.R, c.color.G, c.color.B };
+            return new Dictionary<string, byte>
+            {
+                {"a", c.color.A}, 
+                {"r", c.color.R},
+                {"g", c.color.G},
+                {"b", c.color.B}, 
+            };
         }
 
-        public static DSColor BuildColorFromRange(DSColor start, DSColor end, double value)
+        /// <summary>
+        ///     Get a color from a color gradient between a start color and an end color.
+        /// </summary>
+        /// <param name="start">The starting color of the range.</param>
+        /// <param name="end">The end color of the range.</param>
+        /// <param name="value">The value between 0 and 1 along the range for which you would like to sample the color.</param>
+        /// <returns name="color">Color in the given range.</returns>
+        /// <search>color,range,gradient</search>
+        [IsVisibleInDynamoLibrary(false)]
+        public static Color BuildColorFromRange(Color start, Color end, double value)
         {
             var selRed = (int)(start.Red + (end.Red - start.Red) * value);
             var selGreen = (int)(start.Green + (end.Green - start.Green) * value);

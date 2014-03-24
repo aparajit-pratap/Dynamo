@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Reflection;
 using System.Linq;
@@ -133,7 +135,7 @@ namespace ProtoFFI
         {
             foreach (var item in ClassNode.funclist)
             {
-                if (item.Name == ProtoCore.DSDefinitions.Keyword.Dispose)
+                if (CoreUtils.IsDisposeMethod(item.Name))
                     return; //Dispose method is already present.
             }
             bool resetModule = false;
@@ -197,6 +199,24 @@ namespace ProtoFFI
             } 
         }
 
+        public static bool TryGetImportedDSType(Type type, out ProtoCore.Type dsType)
+        {
+            return mTypeMaps.TryGetValue(type, out dsType);
+        }
+
+        public static void SetTypeAttributes(Type type, FFIClassAttributes attributes)
+        {
+            lock (mTypeAttributeMaps)
+            {
+                mTypeAttributeMaps[type] = attributes;
+            }
+        }
+
+        public static bool TryGetTypeAttributes(Type type, out FFIClassAttributes attributes)
+        {
+            return mTypeAttributeMaps.TryGetValue(type, out attributes);
+        }
+
         public static ProtoCore.Type GetProtoCoreType(Type type, CLRDLLModule module)
         {
             ProtoCore.Type protoCoreType;
@@ -242,10 +262,12 @@ namespace ProtoFFI
 
         private static readonly Dictionary<System.Type, ProtoCore.Type> mTypeMaps = new Dictionary<Type, ProtoCore.Type>();
 
+        private static readonly Dictionary<System.Type, FFIClassAttributes> mTypeAttributeMaps = new Dictionary<System.Type, FFIClassAttributes>();
+
         private Type GetBaseType(Type type)
         {
             Type b = type.BaseType;
-            if (null != b && !IsBrowsable(b))
+            if (null != b && SupressesImport(b))
                 return GetBaseType(b);
 
             return b;
@@ -289,7 +311,7 @@ namespace ProtoFFI
 
         private ClassDeclNode ParseSystemType(Type type, string alias)
         {
-            Validity.Assert(IsBrowsable(type), "Non browsable type is being imported!!");
+            Validity.Assert(!SupressesImport(type), "Supressed type is being imported!!");
 
             string classname = alias;
             if (classname == null | classname == string.Empty)
@@ -321,7 +343,7 @@ namespace ProtoFFI
                 ConstructorInfo[] ctors = type.GetConstructors();
                 foreach (var c in ctors)
                 {
-                    if (c.IsPublic && !c.IsGenericMethod && IsBrowsable(c))
+                    if (c.IsPublic && !c.IsGenericMethod && !SupressesImport(c))
                     {
                         ConstructorDefinitionNode node = ParseConstructor(c, type);
                         classnode.funclist.Add(node);
@@ -343,14 +365,14 @@ namespace ProtoFFI
 
             foreach (var m in methods)
             {
-                if (!IsBrowsable(m))
+                if (SupressesImport(m))
                     continue;
 
                 if (isStaticClass && m.GetBaseDefinition().DeclaringType == baseType && baseType == typeof(object))
                     continue;
 
                 //Don't include overriden methods or generic methods
-                if (m.IsPublic && !m.IsGenericMethod && (m == m.GetBaseDefinition() || (m.GetBaseDefinition().DeclaringType == baseType && baseType == typeof(Object))))
+                if (m.IsPublic && !m.IsGenericMethod && m == m.GetBaseDefinition())
                 {
                     AssociativeNode node = ParseAndRegisterFunctionPointer(isDisposable, ref hasDisposeMethod, m);
                     classnode.funclist.Add(node);
@@ -370,7 +392,7 @@ namespace ProtoFFI
             FieldInfo[] fields = type.GetFields();
             foreach (var f in fields)
             {
-                if (!IsBrowsable(f))
+                if (SupressesImport(f))
                     continue;
 
                 VarDeclNode variable = ParseFieldDeclaration(f);
@@ -389,6 +411,10 @@ namespace ProtoFFI
                 if(null != node)
                     classnode.varlist.Add(node);
             }
+
+            FFIClassAttributes cattrs = new FFIClassAttributes(type);
+            classnode.ClassAttributes = cattrs;
+            SetTypeAttributes(type, cattrs);
 
             return classnode;
         }
@@ -498,7 +524,7 @@ namespace ProtoFFI
 
         private ProtoCore.AST.AssociativeAST.AssociativeNode ParseProperty(PropertyInfo p)
         {
-            if (null == p || !IsBrowsable(p))
+            if (null == p || SupressesImport(p))
                 return null;
             
             //Index properties are not parsed as property at this moment.
@@ -527,20 +553,20 @@ namespace ProtoFFI
             return varDeclNode;
         }
 
-        public static bool IsBrowsable(MemberInfo member)
+        public static bool SupressesImport(MemberInfo member)
         {
             if (null == member)
-                return false;
+                return true;
 
             object[] atts = member.GetCustomAttributes(false);
             foreach (var item in atts)
             {
-                BrowsableAttribute browsable = item as BrowsableAttribute;
-                if (null != browsable)
-                    return browsable.Browsable;
+                SupressImportIntoVMAttribute supressImport = item as SupressImportIntoVMAttribute;
+                if (null != supressImport)
+                    return true;
             }
 
-            return true;
+            return false;
         }
 
         private bool AllowsRankReduction(MethodInfo method)
@@ -557,7 +583,7 @@ namespace ProtoFFI
 
         private ProtoCore.AST.AssociativeAST.VarDeclNode ParseFieldDeclaration(FieldInfo f)
         {
-            if (null == f || !IsBrowsable(f))
+            if (null == f || SupressesImport(f))
                 return null;
 
             ProtoCore.AST.AssociativeAST.VarDeclNode varDeclNode = ParseArgumentDeclaration(f.Name, f.FieldType);
@@ -571,7 +597,7 @@ namespace ProtoFFI
 
         private ProtoCore.AST.AssociativeAST.FunctionDefinitionNode ParseFieldAccessor(FieldInfo f)
         {
-            if (null == f || !IsBrowsable(f))
+            if (null == f || SupressesImport(f))
                 return null;
 
             ProtoCore.AST.AssociativeAST.FunctionDefinitionNode func = new ProtoCore.AST.AssociativeAST.FunctionDefinitionNode();
@@ -595,6 +621,7 @@ namespace ProtoFFI
             bool propaccessor = isPropertyAccessor(method);
             bool isOperator = isOverloadedOperator(method);
 
+            FFIMethodAttributes mattrs = new FFIMethodAttributes(method);
             if (method.IsStatic &&
                 method.DeclaringType == method.ReturnType && 
                 !propaccessor &&
@@ -605,13 +632,12 @@ namespace ProtoFFI
                     throw new InvalidOperationException("Unexpected type for constructor {0D28FC00-F8F4-4049-AD1F-BBC34A68073F}");
 
                 retype = ProtoCoreType;
-                return ParsedNamedConstructor(method, method.Name, retype);
+                ConstructorDefinitionNode node = ParsedNamedConstructor(method, method.Name, retype);
+                node.MethodAttributes = mattrs;
+                return node;
             }
 
             //Need to hide property accessor from design script users, prefix with %
-
-            FFIMethodAttributes mattrs = new FFIMethodAttributes(method);
-
             string prefix = (isOperator || propaccessor) ? "%" : "";
             var func = new ProtoCore.AST.AssociativeAST.FunctionDefinitionNode();
 
@@ -687,7 +713,7 @@ namespace ProtoFFI
         {
             List<FFIFunctionPointer> pointers = GetFunctionPointers(functionName);
             FFIFunctionPointer f = null;
-            if (functionName == ProtoCore.DSDefinitions.Keyword.Dispose)
+            if (CoreUtils.IsDisposeMethod(functionName))
                 f = new DisposeFunctionPointer(Module, method, retype);
             else if (CoreUtils.IsGetter(functionName))
                 f = new GetterFunctionPointer(Module, functionName, method, retype);
@@ -732,7 +758,6 @@ namespace ProtoFFI
                 if (parameter.IsDefined(typeof(Autodesk.DesignScript.Runtime.ArbitraryDimensionArrayImportAttribute), false))
                 {
                     var argType = paramNode.ArgumentType;
-                    argType.IsIndexable = true;
                     argType.rank = ProtoCore.DSASM.Constants.kArbitraryRank;
                     paramNode.ArgumentType = argType;
                 }
@@ -787,13 +812,7 @@ namespace ProtoFFI
                                                                              {
                 Value = parameterName,
                 Name = parameterName,
-                datatype = new ProtoCore.Type()
-                {
-                    Name = "var",
-                    IsIndexable = false,
-                    rank = 0,
-                    UID = (int)ProtoCore.PrimitiveType.kTypeVar
-                }
+                datatype = ProtoCore.TypeSystem.BuildPrimitiveTypeObject(ProtoCore.PrimitiveType.kTypeVar, 0)
             };
             //Lets emit native DS type object
             ProtoCore.Type argtype = CLRModuleType.GetProtoCoreType(parameterType, Module);
@@ -838,6 +857,7 @@ namespace ProtoFFI
                 mTypes.Clear();
                 mTypeNames.Clear();
                 mTypeMaps.Clear();
+                mTypeAttributeMaps.Clear();
             }
         }
 
@@ -885,7 +905,7 @@ namespace ProtoFFI
             if (mTypes.TryGetValue(className, out type))
                 return type.GetFunctionPointers(name);
 
-            if (name == ProtoCore.DSDefinitions.Keyword.Dispose)
+            if (CoreUtils.IsDisposeMethod(name))
             {
                 List<FFIFunctionPointer> pointers = new List<FFIFunctionPointer>();
                 pointers.Add( new DisposeFunctionPointer(this, CLRModuleType.DisposeMethod, CLRModuleType.GetProtoCoreType(CLRModuleType.DisposeMethod.ReturnType, this)));
@@ -927,7 +947,7 @@ namespace ProtoFFI
             System.Threading.Tasks.Parallel.ForEach(types, type =>
             {
                 //For now there is no support for generic type.
-                if (!type.IsGenericType && type.IsPublic && !exttype.IsAssignableFrom(type) && CLRModuleType.IsBrowsable(type))
+                if (!type.IsGenericType && type.IsPublic && !exttype.IsAssignableFrom(type) && !CLRModuleType.SupressesImport(type))
                 {
                     CLRModuleType importedType = CLRModuleType.GetInstance(type, this, alias);
                 }
@@ -936,7 +956,7 @@ namespace ProtoFFI
             foreach (var type in types)
             {
                 //For now there is no support for generic type.
-                if (!type.IsGenericType && type.IsPublic && !exttype.IsAssignableFrom(type) && CLRModuleType.IsBrowsable(type))
+                if (!type.IsGenericType && type.IsPublic && !exttype.IsAssignableFrom(type) && !CLRModuleType.SupressesImport(type))
                 {
                     CLRModuleType importedType = CLRModuleType.GetInstance(type, this, alias);
                     Type[] nestedTypes = type.GetNestedTypes();
@@ -1142,18 +1162,68 @@ namespace ProtoFFI
         }
     }
 
+    public class FFIClassAttributes
+    {
+        public bool IsVisibleInLibrary { get; private set; }
+        public bool IsVisibleInLibrarySet { get; private set; }
+        public FFIClassAttributes(Type type)
+        {
+            IsVisibleInLibrary = true;
+            IsVisibleInLibrarySet = false;
+
+            if (type == null)
+            {
+                return;
+            }
+
+            object[] attrs = type.GetCustomAttributes(false);
+            foreach (var attr in attrs)
+            {
+                if (attr is IsVisibleInDynamoLibraryAttribute)
+                {
+                    var visibleInLibraryAttr = attr as IsVisibleInDynamoLibraryAttribute;
+                    IsVisibleInLibrary = visibleInLibraryAttr.Visible;
+                    IsVisibleInLibrarySet = true;
+                }
+            }
+        }
+    }
+
     public class FFIMethodAttributes
     {
         public bool AllowRankReduction { get; private set; }
         public bool RequireTracing { get; private set; }
-        public Dictionary<string, string> MutilReturnMap { get; private set; }
+        public IEnumerable<string> ReturnKeys
+        {
+            get
+            {
+                return returnKeys;
+            }
+        }
+        private List<string> returnKeys;
+        public bool IsVisibleInLibrary { get; private set; }
+        public bool IsVisibleInLibrarySet { get; private set; }
 
         public FFIMethodAttributes(MethodInfo method)
         {
-            MutilReturnMap = new Dictionary<string, string>();
             if (method == null)
             {
                 return;
+            }
+
+            IsVisibleInLibrary = true;
+            IsVisibleInLibrarySet = false;
+
+            FFIClassAttributes baseAttributes = null;
+            Type type = method.DeclaringType;
+            if (!CLRModuleType.TryGetTypeAttributes(type, out baseAttributes))
+            {
+                baseAttributes = new FFIClassAttributes(type);
+                CLRModuleType.SetTypeAttributes(type, baseAttributes);
+            }
+            if (null != baseAttributes)
+            {
+                IsVisibleInLibrary = baseAttributes.IsVisibleInLibrary;
             }
 
             object[] attrs = method.GetCustomAttributes(false);
@@ -1169,8 +1239,14 @@ namespace ProtoFFI
                 }
                 else if (attr is MultiReturnAttribute)
                 {
-                    var nameTypePair = (attr as MultiReturnAttribute);
-                    MutilReturnMap.Add(nameTypePair.Name, nameTypePair.Type);
+                    var multiReturnAttr = (attr as MultiReturnAttribute);
+                    returnKeys = multiReturnAttr.ReturnKeys.ToList();
+                }
+                else if (attr is IsVisibleInDynamoLibraryAttribute)
+                {
+                    var visibleInLibraryAttr = attr as IsVisibleInDynamoLibraryAttribute;
+                    IsVisibleInLibrary = visibleInLibraryAttr.Visible;
+                    IsVisibleInLibrarySet = true;
                 }
             }
         }

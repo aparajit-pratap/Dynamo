@@ -44,12 +44,7 @@ namespace RevitServices.Threading
             }
             idle = false;
         }
-
-        internal static void Register(UIControlledApplication uIApplication)
-        {
-            uIApplication.Idling += Application_Idling;
-        }
-
+        
         /// <summary>
         /// Are there currently promises queued for Idle thread invocation?
         /// </summary>
@@ -82,7 +77,7 @@ namespace RevitServices.Threading
         /// <param name="uIApplication">UIControlledApplication to use the Idle event of.</param>
         public static void RegisterIdle(UIControlledApplication uIApplication)
         {
-            Register(uIApplication);
+            uIApplication.Idling += Application_Idling;
         }
 
         /// <summary>
@@ -112,6 +107,12 @@ namespace RevitServices.Threading
         /// <param name="p">Delefate to be invoked on the Idle thread.</param>
         public static void ExecuteOnIdleSync(Action p)
         {
+            if (InIdleThread)
+            {
+                p();
+                return;
+            }
+
             var redeemed = false;
 
             Promises.Enqueue(
@@ -134,7 +135,7 @@ namespace RevitServices.Threading
         /// <returns>Result of the delegate.</returns>
         public static T ExecuteOnIdleSync<T>(IdlePromiseDelegate<T> p)
         {
-            return new IdlePromise<T>(p).RedeemPromise();
+            return InIdleThread ? p() : new IdlePromise<T>(p).RedeemPromise();
         }
 
         public static void ExecuteOnShutdown(Action p)

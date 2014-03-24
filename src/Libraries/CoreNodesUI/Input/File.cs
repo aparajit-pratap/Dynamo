@@ -8,13 +8,14 @@ using Dynamo.Controls;
 using Dynamo.Models;
 using Dynamo.Nodes;
 using Dynamo.Utilities;
+using Autodesk.DesignScript.Runtime;
 using Binding = System.Windows.Data.Binding;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace DSCore.File
 {
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public abstract class FileSystemBrowser : DSCoreNodesUI.String
     {
         protected FileSystemBrowser(string tip)
@@ -45,7 +46,7 @@ namespace DSCore.File
 
             tb.HorizontalAlignment = HorizontalAlignment.Stretch;
             tb.VerticalAlignment = VerticalAlignment.Center;
-            var backgroundBrush = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0));
+            var backgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0, 0, 0, 0));
             tb.Background = backgroundBrush;
             tb.BorderThickness = new Thickness(0);
             tb.IsReadOnly = true;
@@ -73,7 +74,7 @@ namespace DSCore.File
     [NodeName("File Path")]
     [NodeCategory(BuiltinNodeCategories.CORE_INPUT)]
     [NodeDescription("Allows you to select a file on the system to get its filename.")]
-    [Browsable(false)]
+    [SupressImportIntoVM]
     [IsDesignScriptCompatible]
     public class Filename : FileSystemBrowser
     {
@@ -97,8 +98,9 @@ namespace DSCore.File
     [NodeName("Directory Path")]
     [NodeCategory(BuiltinNodeCategories.CORE_INPUT)]
     [NodeDescription("Allows you to select a directory on the system to get its path.")]
-    [Browsable(false)]
+    [SupressImportIntoVM]
     [IsDesignScriptCompatible]
+    [IsVisibleInDynamoLibrary(false)]
     public class Directory : FileSystemBrowser
     {
         public Directory() : base("Directory") { }

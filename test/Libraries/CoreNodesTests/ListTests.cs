@@ -2,11 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
 using NUnit.Framework;
-using DSCore;
-using Enum = Dynamo.Nodes.Enum;
 using List = DSCore.List;
 
 namespace DSCoreNodesTests
@@ -165,8 +161,8 @@ namespace DSCoreNodesTests
             // Explicitly test each aspect of the returned value.
             Assert.IsNotNull(results);
             Assert.AreEqual(2, results.Count);
-            Assert.AreEqual("first", results.Keys.ElementAt(0));
-            Assert.AreEqual("rest", results.Keys.ElementAt(1));
+            Assert.AreEqual("first", results.Keys.Cast<string>().First());
+            Assert.AreEqual("rest", results.Keys.Cast<string>().ElementAt(1));
             Assert.AreEqual(0, results["first"]);
 
             var rest = results["rest"] as List<object>;
@@ -219,7 +215,7 @@ namespace DSCoreNodesTests
         [Test]
         public static void RemoveValueFromList()
         {
-            Assert.AreEqual(new List<int> { 0, 1, 3, 4 }, List.RemoveItemAtIndex(new List<int> { 0, 1, 2, 3, 4 }, 2));
+            Assert.AreEqual(new List<int> { 0, 1, 3, 4 }, List.RemoveItemAtIndex(new List<int> { 0, 1, 2, 3, 4 }, new int[]{2}));
         }
 
         [Test]
@@ -227,7 +223,16 @@ namespace DSCoreNodesTests
         {
             Assert.AreEqual(
                 new List<int> { 0, 4 },
-                List.RemoveItemAtIndex(new List<int> { 0, 1, 2, 3, 4 }, new List<int> { 1, 2, 3 }));
+                List.RemoveItemAtIndex(new List<int> { 0, 1, 2, 3, 4 }, new int[] { 1, 2, 3 }));
+        }
+
+        [Test]
+        public static void RemoveMultipleValuesFromNestedList()
+        {
+            var strings = new List<string> { "one", "two" };
+            Assert.AreEqual(
+                new List<object> { 0, 4 },
+                List.RemoveItemAtIndex(new List<object> { 0, 1, strings, new List<object> { 1, strings }, 4 }, new int[] { 1, 2, 3 }));
         }
 
         [Test]
@@ -298,16 +303,16 @@ namespace DSCoreNodesTests
         public static void ListDiagonalRight()
         {
             Assert.AreEqual(
-                new ArrayList
+                new List<List<int>>()
                 {
-                    new ArrayList { 15 }, 
-                    new ArrayList { 10, 16 }, 
-                    new ArrayList { 5, 11, 17, },
-                    new ArrayList { 0, 6, 12, 18 },
-                    new ArrayList { 1, 7, 13, 19 },
-                    new ArrayList { 2, 8, 14 },
-                    new ArrayList { 3, 9 },
-                    new ArrayList { 4 }
+                    new List<int>() { 15 }, 
+                    new List<int>() { 10, 16 }, 
+                    new List<int>() { 5, 11, 17, },
+                    new List<int>() { 0, 6, 12, 18 },
+                    new List<int>() { 1, 7, 13, 19 },
+                    new List<int>(){ 2, 8, 14 },
+                    new List<int>() { 3, 9 },
+                    new List<int>() { 4 }
                 },
                 List.DiagonalRight(Enumerable.Range(0, 20).ToList(), 5));
         }
@@ -316,16 +321,16 @@ namespace DSCoreNodesTests
         public static void ListDiagonalLeft()
         {
             Assert.AreEqual(
-                new ArrayList
+                new List<List<int>>()
                 {
-                    new ArrayList { 0 }, 
-                    new ArrayList { 1, 5 }, 
-                    new ArrayList { 2, 6, 10, },
-                    new ArrayList { 3, 7, 11, 15 },
-                    new ArrayList { 4, 8, 12, 16 },
-                    new ArrayList { 9, 13, 17 },
-                    new ArrayList { 14, 18 },
-                    new ArrayList { 19 }
+                    new List<int>() { 0 }, 
+                    new List<int>() { 1, 5 }, 
+                    new List<int>() { 2, 6, 10, },
+                    new List<int>() { 3, 7, 11, 15 },
+                    new List<int>() { 4, 8, 12, 16 },
+                    new List<int>() { 9, 13, 17 },
+                    new List<int>() { 14, 18 },
+                    new List<int>() { 19 }
                 },
                 List.DiagonalLeft(Enumerable.Range(0, 20).ToList(), 5));
         }

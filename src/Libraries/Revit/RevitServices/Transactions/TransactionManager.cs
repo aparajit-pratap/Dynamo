@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Linq;
 using Autodesk.Revit.DB;
+using RevitServices.Threading;
 
 namespace RevitServices.Transactions
 {
@@ -8,6 +10,15 @@ namespace RevitServices.Transactions
     /// </summary>
     public class TransactionManager
     {
+        public static event Action<string> OnLog;
+
+        internal static void Log(string obj)
+        {
+            var handler = OnLog;
+            if (handler != null) 
+                handler(obj);
+        }
+
         private static TransactionManager manager;
         
         /// <summary>
@@ -15,6 +26,7 @@ namespace RevitServices.Transactions
         /// </summary>
         public static void SetupManager()
         {
+            Log("Setting up Transaction Manager with Default Strategy (Debug)");
             manager = new TransactionManager();
         }
         
@@ -23,6 +35,7 @@ namespace RevitServices.Transactions
         /// </summary>
         public static void SetupManager(ITransactionStrategy strategy)
         {
+            Log("Setting up Transaction Manager with Strategy: " + strategy.GetType());
             manager = new TransactionManager(strategy);
         }
 
@@ -44,10 +57,19 @@ namespace RevitServices.Transactions
             }
         }
 
+        private ITransactionStrategy strat;
         /// <summary>
         ///     Transaction strategy utilized by this manager.
         /// </summary>
-        public ITransactionStrategy Strategy { get; set; }
+        public ITransactionStrategy Strategy
+        {
+            get { return strat; }
+            set
+            {
+                strat = value;
+                Log("Transaction Manager Strategy set to: " + strat.GetType());
+            }
+        }
 
         /// <summary>
         ///     TransactionWrapper managed by this manager.
@@ -75,6 +97,7 @@ namespace RevitServices.Transactions
             }
             Strategy = strategy;
             TransactionWrapper = new TransactionWrapper();
+            DoAssertInIdleThread = true;
         }
 
         /// <summary>
@@ -82,6 +105,8 @@ namespace RevitServices.Transactions
         /// </summary>
         public void EnsureInTransaction(Document document)
         {
+            AssertInIdleThread();
+
             //Hand off the behaviour to the strategy
             handle = Strategy.EnsureInTransaction(TransactionWrapper, document);
         }
@@ -92,6 +117,8 @@ namespace RevitServices.Transactions
         /// </summary>
         public void TransactionTaskDone()
         {
+            AssertInIdleThread();
+
             //Hand off the behaviour to the strategy
             Strategy.TransactionTaskDone(handle);
         }
@@ -101,12 +128,31 @@ namespace RevitServices.Transactions
         /// </summary>
         public void ForceCloseTransaction()
         {
+             AssertInIdleThread();
+            
             //Hand off the behaviour to the strategy
             Strategy.ForceCloseTransaction(handle);
         }
+
+        /// <summary>
+        ///     Ensures that the current execution context is an IdleThread
+        /// </summary>
+        public void AssertInIdleThread()
+        {
+            if (DoAssertInIdleThread)
+                if (!IdlePromise.InIdleThread)
+                    throw new Exception("Cannot start a transaction outside of the Revit idle thread.");
+        }
+
+        /// <summary>
+        /// Determines whether the TransactionManager checks to be in an IdleThread.
+        /// </summary>
+        public bool DoAssertInIdleThread { get; set; }
     }
-
-
+    
+    /// <summary>
+    ///     Contains logic for managing transactions in a dynamo graph evaluation.
+    /// </summary>
     public interface ITransactionStrategy
     {
         /// <summary>
@@ -128,7 +174,6 @@ namespace RevitServices.Transactions
         void ForceCloseTransaction(TransactionHandle handle);
     }
 
-
     /// <summary>
     ///     Basic transaction handling strategy that opens
     ///     a new transaction for every operation
@@ -137,15 +182,23 @@ namespace RevitServices.Transactions
     {
         public TransactionHandle EnsureInTransaction(TransactionWrapper wrapper, Document document)
         {
+            TransactionManager.Log("EnsureInTransaction - DEBUG STRAT: Starting new Transaction");
             return !wrapper.TransactionActive ? wrapper.StartTransaction(document) : wrapper.Handle;
         }
 
         public void TransactionTaskDone(TransactionHandle handle)
         {
-            ForceCloseTransaction(handle);
+            TransactionManager.Log("TransactionTaskDone - DEBUG STRAT: Ending Transaction");
+            EndTransaction(handle);
         }
         
         public void ForceCloseTransaction(TransactionHandle handle)
+        {
+            TransactionManager.Log("ForceCloseTransaction - DEBUG STRAT: Ending Transaction");
+            EndTransaction(handle);
+        }
+
+        private static void EndTransaction(TransactionHandle handle)
         {
             if (handle != null && handle.Status == TransactionStatus.Started)
                 handle.CommitTransaction();
@@ -155,27 +208,30 @@ namespace RevitServices.Transactions
 
     /// <summary>
     ///     Transaction handling strategy that uses the same
-    ///     transaction for 
+    ///     transaction for all operations.  Checks to make sure the
+    ///     current transaction is using an IdleThread for execution.
     /// </summary>
     public class AutomaticTransactionStrategy : ITransactionStrategy
     {
         public TransactionHandle EnsureInTransaction(TransactionWrapper wrapper, Document document)
         {
+            TransactionManager.Log("EnsureInTransaction - AUTO STRAT: Starting new Transaction");
             return !wrapper.TransactionActive ? wrapper.StartTransaction(document) : wrapper.Handle;
         }
 
         public void TransactionTaskDone(TransactionHandle handle)
         {
+            TransactionManager.Log("TransactionTaskDone - AUTO STRAT: Preserving Transaction");
             //Do nothing in automatic, continue using the same transaction.
         }
 
         public void ForceCloseTransaction(TransactionHandle handle)
         {
+            TransactionManager.Log("ForceCloseTransaction - AUTO STRAT: Ending Transaction");
             if (handle != null && handle.Status == TransactionStatus.Started)
                 handle.CommitTransaction();
         }
     }
-
 
     /// <summary>
     ///     Wraps Revit Transaction methods and provides events for transaction initialization
@@ -214,6 +270,7 @@ namespace RevitServices.Transactions
         public event Action TransactionCancelled;
 
         #region Event Raising Utility Methods
+
         private void RaiseTransactionStarted()
         {
             if (TransactionStarted != null)
@@ -239,6 +296,7 @@ namespace RevitServices.Transactions
 
             FailuresRaised(failures);
         }
+
         #endregion
 
         /// <summary>
@@ -249,6 +307,7 @@ namespace RevitServices.Transactions
         {
             if (Transaction == null || Transaction.GetStatus() != TransactionStatus.Started)
             {
+                TransactionManager.Log("Starting Transaction.");
                 Transaction = new Transaction(document, "Dynamo Script");
                 Transaction.Start();
 
@@ -287,7 +346,6 @@ namespace RevitServices.Transactions
             public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
             {
                 tm.ProcessFailures(failuresAccessor);
-
                 return FailureProcessingResult.Continue;
             }
         }
@@ -316,6 +374,7 @@ namespace RevitServices.Transactions
             {
                 if (manager.Transaction.GetStatus() == TransactionStatus.Started)
                 {
+                    TransactionManager.Log("Committing Transaction.");
                     var result = manager.Transaction.Commit();
                     manager.RaiseTransactionCommitted();
 
@@ -334,6 +393,7 @@ namespace RevitServices.Transactions
             {
                 if (manager.Transaction.GetStatus() == TransactionStatus.Started)
                 {
+                    TransactionManager.Log("Cancelling Transaction.");
                     var result = manager.Transaction.RollBack();
                     manager.RaiseTransactionCancelled();
 

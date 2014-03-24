@@ -1,12 +1,9 @@
 ﻿using System;
-using Autodesk.Revit.DB;
-using Autodesk.DesignScript.Geometry;
 using DSNodeServices;
-using Revit.Elements;
 using Revit.GeometryConversion;
 using RevitServices.Persistence;
 using RevitServices.Transactions;
-using Point = Autodesk.DesignScript.Geometry.Point;
+using Curve = Autodesk.Revit.DB.Curve;
 
 namespace Revit.Elements
 {
@@ -45,7 +42,7 @@ namespace Revit.Elements
         }
 
         /// <summary>
-        /// Create a new WallType, deleting the original
+        /// Create a new instance of WallType, deleting the original
         /// </summary>
         /// <param name="curve"></param>
         /// <param name="wallType"></param>
@@ -54,18 +51,50 @@ namespace Revit.Elements
         /// <param name="offset"></param>
         /// <param name="flip"></param>
         /// <param name="isStructural"></param>
-        private Wall(Autodesk.Revit.DB.Curve curve, Autodesk.Revit.DB.WallType wallType, Autodesk.Revit.DB.Level baseLevel, double height, double offset, bool flip, bool isStructural)
+        private Wall(Curve curve, Autodesk.Revit.DB.WallType wallType, Autodesk.Revit.DB.Level baseLevel, double height, double offset, bool flip, bool isStructural)
         {
             // This creates a new wall and deletes the old one
             TransactionManager.Instance.EnsureInTransaction(Document);
 
-            var wall = Autodesk.Revit.DB.Wall.Create(Document, curve, wallType.Id, baseLevel.Id, height, offset, flip, isStructural);
+            //Phase 1 - Check to see if the object exists and should be rebound
+            var wallElem =
+                ElementBinder.GetElementFromTrace<Autodesk.Revit.DB.Wall>(Document);
+
+            bool successfullyUsedExistingWall = false;
+            //There was a modelcurve, try and set sketch plane
+            // if you can't, rebuild 
+            if (wallElem != null && wallElem.Location is Autodesk.Revit.DB.LocationCurve)
+            {
+               var wallLocation = wallElem.Location as Autodesk.Revit.DB.LocationCurve;
+               if ((wallLocation.Curve is Autodesk.Revit.DB.Line == curve is Autodesk.Revit.DB.Line) ||
+                   (wallLocation.Curve is Autodesk.Revit.DB.Arc == curve is Autodesk.Revit.DB.Arc))
+               {
+                  wallLocation.Curve = curve;
+
+                  Autodesk.Revit.DB.Parameter baseLevelParameter =
+                     wallElem.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.WALL_BASE_CONSTRAINT);
+                  Autodesk.Revit.DB.Parameter topOffsetParameter =
+                     wallElem.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM);
+                  Autodesk.Revit.DB.Parameter wallTypeParameter =
+                     wallElem.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ELEM_TYPE_PARAM);
+                  if (baseLevelParameter.AsElementId() != baseLevel.Id)
+                     baseLevelParameter.Set(baseLevel.Id);
+                  if (Math.Abs(topOffsetParameter.AsDouble() - height) > 1.0e-10)
+                     topOffsetParameter.Set(height);
+                  if (wallTypeParameter.AsElementId() != wallType.Id)
+                     wallTypeParameter.Set(wallType.Id);
+                  successfullyUsedExistingWall = true;
+               }
+            }
+ 
+            var wall = successfullyUsedExistingWall ? wallElem :
+                     Autodesk.Revit.DB.Wall.Create(Document, curve, wallType.Id, baseLevel.Id, height, offset, flip, isStructural);
             InternalSetWall(wall);
 
             TransactionManager.Instance.TransactionTaskDone();
 
             // delete the element stored in trace and add this new one
-            ElementBinder.CleanupAndSetElementForTrace(Document, this.InternalElement);
+            ElementBinder.CleanupAndSetElementForTrace(Document, InternalWall);
         }
 
         #endregion
@@ -78,9 +107,9 @@ namespace Revit.Elements
         /// <param name="wall"></param>
         private void InternalSetWall(Autodesk.Revit.DB.Wall wall)
         {
-            this.InternalWall = wall;
-            this.InternalElementId = wall.Id;
-            this.InternalUniqueId = wall.UniqueId;
+            InternalWall = wall;
+            InternalElementId = wall.Id;
+            InternalUniqueId = wall.UniqueId;
         }
 
         #endregion
@@ -117,7 +146,8 @@ namespace Revit.Elements
                 throw new ArgumentException("The height must be greater than 0 and less that 30000 ft.  You provided a height of " + height + " ft.");
             }
 
-            return new Wall(curve.ToRevitType(), wallType.InternalWallType, level.InternalLevel, height, 0.0, false, false);
+
+           return new Wall(curve.ToRevitType(), wallType.InternalWallType, level.InternalLevel, height, 0.0, false, false);
         }
 
         /// <summary>
@@ -142,7 +172,7 @@ namespace Revit.Elements
 
             var height = endLevel.Elevation - startLevel.Elevation;
 
-            return Wall.ByCurveAndHeight(c, height, startLevel, wallType);
+            return ByCurveAndHeight(c, height, startLevel, wallType);
         }
 
         #endregion

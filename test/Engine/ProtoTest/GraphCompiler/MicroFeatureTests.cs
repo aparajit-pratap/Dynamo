@@ -241,7 +241,7 @@ namespace ProtoTest.GraphCompiler
             {
                 Name = "int",
                 UID = (int)ProtoCore.PrimitiveType.kTypeInt,
-                IsIndexable = false,
+                //IsIndexable = false,
                 rank = 0
             };
             /*Class C { }*/
@@ -254,7 +254,7 @@ namespace ProtoTest.GraphCompiler
                 datatype = new ProtoCore.Type()
                 {
                     Name = "int",
-                    IsIndexable = false,
+                    //IsIndexable = false,
                     rank = 0,
                     UID = (int)ProtoCore.PrimitiveType.kTypeInt
                 }
@@ -263,7 +263,7 @@ namespace ProtoTest.GraphCompiler
             varDeclNode.ArgumentType = new ProtoCore.Type()
             {
                 Name = "int",
-                IsIndexable = false,
+                //IsIndexable = false,
                 rank = 0,
                 UID = (int)ProtoCore.PrimitiveType.kTypeVar
             };
@@ -372,7 +372,7 @@ namespace ProtoTest.GraphCompiler
                 datatype = new ProtoCore.Type()
                 {
                     Name = "int",
-                    IsIndexable = false,
+                    //IsIndexable = false,
                     rank = 0,
                     UID = (int)ProtoCore.PrimitiveType.kTypeInt
                 }
@@ -388,7 +388,7 @@ namespace ProtoTest.GraphCompiler
                 datatype = new ProtoCore.Type()
                 {
                     Name = "int",
-                    IsIndexable = false,
+                    //IsIndexable = false,
                     rank = 0,
                     UID = (int)ProtoCore.PrimitiveType.kTypeInt
                 }
@@ -406,7 +406,7 @@ namespace ProtoTest.GraphCompiler
             {
                 Name = "int",
                 UID = (int)ProtoCore.PrimitiveType.kTypeInt,
-                IsIndexable = false,
+                //IsIndexable = false,
                 rank = 0
             };
             // C { }

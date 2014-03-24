@@ -62,6 +62,15 @@ namespace Dynamo.DSEngine
         }
 
         /// <summary>
+        /// Return runtime warnings for this run.
+        /// </summary>
+        /// <returns></returns>
+        public Dictionary<Guid, List<ProtoCore.RuntimeData.WarningEntry>> GetRuntimeWarnings()
+        {
+            return liveRunner.GetRuntimeWarnings();
+        }
+
+        /// <summary>
         /// Each time when a new library is imported, LiveRunner need to reload
         /// all libraries and reset VM.
         /// </summary>

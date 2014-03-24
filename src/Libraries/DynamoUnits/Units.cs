@@ -1,12 +1,13 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Double = System.Double;
+using Autodesk.DesignScript.Runtime;
 
 namespace Dynamo.Units
 {
-    [Browsable(false)]
+    //[SupressImportIntoVM]
+    [IsVisibleInDynamoLibrary(false)]
     public enum DynamoLengthUnit
     {
         DecimalInch,
@@ -18,7 +19,8 @@ namespace Dynamo.Units
         Meter
     }
 
-    [Browsable(false)]
+    //[SupressImportIntoVM]
+    [IsVisibleInDynamoLibrary(false)]
     public enum DynamoAreaUnit
     {
         SquareInch, 
@@ -28,7 +30,8 @@ namespace Dynamo.Units
         SquareMeter
     }
 
-    [Browsable(false)]
+    //[SupressImportIntoVM]
+    [IsVisibleInDynamoLibrary(false)]
     public enum DynamoVolumeUnit
     {
         CubicInch,
@@ -38,7 +41,6 @@ namespace Dynamo.Units
         CubicMeter
     }
 
-    // [Browsable(false)]
     public abstract class SIUnit
     {
         //length conversions
@@ -612,6 +614,7 @@ namespace Dynamo.Units
             _value = total;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public bool Equals(Length other)
         {
             if (other == null)
@@ -623,14 +626,10 @@ namespace Dynamo.Units
             return false;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override string ToString()
         {
             return BuildString(LengthUnit);
-        }
-
-        public string ToString(DynamoLengthUnit unit)
-        {
-            return BuildString(unit);
         }
 
         private string BuildString(DynamoLengthUnit unit)
@@ -665,6 +664,7 @@ namespace Dynamo.Units
 
         #endregion
 
+        [IsVisibleInDynamoLibrary(false)]
         public int CompareTo(object obj)
         {
             if (obj == null) return 1;
@@ -676,6 +676,7 @@ namespace Dynamo.Units
                 throw new ArgumentException("Object is not a Length");
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override bool Equals(object obj)
         {
             if (obj == null)
@@ -846,6 +847,7 @@ namespace Dynamo.Units
             _value = total < 0 ? 0.0 : total;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public bool Equals(Area other)
         {
             if (other == null)
@@ -857,14 +859,10 @@ namespace Dynamo.Units
             return false;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override string ToString()
         {
             return BuildString(AreaUnit);
-        }
-
-        public string ToString(DynamoAreaUnit unit)
-        {
-            return BuildString(unit);
         }
 
         private string BuildString(DynamoAreaUnit unit)
@@ -893,6 +891,7 @@ namespace Dynamo.Units
 
         #endregion
 
+        [IsVisibleInDynamoLibrary(false)]
         public int CompareTo(object obj)
         {
             if (obj == null) return 1;
@@ -904,6 +903,7 @@ namespace Dynamo.Units
                 throw new ArgumentException("Object is not an Area");
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override bool Equals(object obj)
         {
             if (obj == null)
@@ -1065,6 +1065,7 @@ namespace Dynamo.Units
             _value = total < 0 ? 0.0 : total;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public bool Equals(Volume other)
         {
             if (other == null)
@@ -1076,14 +1077,10 @@ namespace Dynamo.Units
             return false;
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override string ToString()
         {
             return BuildString(VolumeUnit);
-        }
-
-        public string ToString(DynamoVolumeUnit unit)
-        {
-            return BuildString(unit);
         }
 
         private string BuildString(DynamoVolumeUnit unit)
@@ -1112,6 +1109,7 @@ namespace Dynamo.Units
 
         #endregion
 
+        [IsVisibleInDynamoLibrary(false)]
         public int CompareTo(object obj)
         {
             if (obj == null) return 1;
@@ -1123,6 +1121,7 @@ namespace Dynamo.Units
                 throw new ArgumentException("Object is not a Volume");
         }
 
+        [IsVisibleInDynamoLibrary(false)]
         public override bool Equals(object obj)
         {
             if (obj == null)
@@ -1142,6 +1141,7 @@ namespace Dynamo.Units
     /// <summary>
     /// A luminous intensity stored as candela
     /// </summary>
+    [IsVisibleInDynamoLibrary(false)]
     public class LuminousIntensity : SIUnit
     {
         public LuminousIntensity(double value) : base(value)
@@ -1228,6 +1228,7 @@ namespace Dynamo.Units
     /// <summary>
     /// A luminance stored as candela/m²
     /// </summary>
+    [IsVisibleInDynamoLibrary(false)]
     public class Luminance : SIUnit
     {
         public Luminance(double value) : base(value)
@@ -1310,7 +1311,7 @@ namespace Dynamo.Units
         }
     }
 
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public static class UnitExtensions
     {
         public static bool AlmostEquals(this double double1, double double2, double precision)
@@ -1337,7 +1338,7 @@ namespace Dynamo.Units
     /// <summary>
     /// Utility class for operating on units of measure.
     /// </summary>
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public class Utils
     {
         public static string ParseWholeInchesToString(double value)
@@ -1608,20 +1609,20 @@ namespace Dynamo.Units
         }
     }
 
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public class MathematicalArgumentException : Exception
     {
         public MathematicalArgumentException() : base("The result could not be computed given the provided inputs.") { }
         public MathematicalArgumentException(string message) : base(message) { }
     }
 
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public class UnitsException : MathematicalArgumentException
     {
         public UnitsException(Type a, Type b) : base(string.Format("{0} and {1} are incompatible for this operation.", a, b)) { }
     }
 
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public interface IUnitInput
     {
         double ConvertToHostUnits();

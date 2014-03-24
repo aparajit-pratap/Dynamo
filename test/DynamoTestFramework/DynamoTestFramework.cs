@@ -84,8 +84,8 @@ namespace Dynamo.Tests
             {
                 var docManager = DocumentManager.Instance;
                 docManager.CurrentUIApplication = revit.Application;
-                docManager.CurrentDBDocument = revit.Application.ActiveUIDocument.Document;
-                docManager.CurrentUIDocument = revit.Application.ActiveUIDocument;
+                //docManager.CurrentDBDocument = revit.Application.ActiveUIDocument.Document;
+                //docManager.CurrentUIDocument = revit.Application.ActiveUIDocument;
                 
                 bool canReadData = (0 < dataMap.Count);
 
@@ -151,6 +151,9 @@ namespace Dynamo.Tests
                 {
                     StartDynamo();
                 }
+
+                // Tests do not necessarily run from idle thread
+                TransactionManager.Instance.DoAssertInIdleThread = false;
 
                 //http://stackoverflow.com/questions/2798561/how-to-run-nunit-from-my-code
 
@@ -257,7 +260,7 @@ namespace Dynamo.Tests
             fecLevel.OfClass(typeof(Level));
 
             DocumentManager.Instance.CurrentUIApplication = DocumentManager.Instance.CurrentUIApplication;
-            DocumentManager.Instance.CurrentUIDocument = DocumentManager.Instance.CurrentUIDocument;
+            //DocumentManager.Instance.CurrentUIDocument = DocumentManager.Instance.CurrentUIDocument;
             dynRevitSettings.DefaultLevel = null;
 
             SIUnit.HostApplicationInternalAreaUnit = DynamoAreaUnit.SquareFoot;

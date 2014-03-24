@@ -363,10 +363,10 @@ namespace Dynamo
         private void Application_DocumentOpened(object sender, DocumentOpenedEventArgs e)
         {
             //when a document is opened 
-            if (DocumentManager.Instance.CurrentUIDocument == null)
+            if (DocumentManager.Instance.CurrentUIDocument != null)
             {
-                DocumentManager.Instance.CurrentUIDocument =
-                    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
+                //DocumentManager.Instance.CurrentUIDocument =
+                //    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
                 DynamoViewModel.RunEnabled = true;
 
                 ResetForNewDocument();
@@ -376,9 +376,9 @@ namespace Dynamo
         private void Application_DocumentClosed(object sender, DocumentClosedEventArgs e)
         {
             //Disable running against revit without a document
-            if (DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument == null)
+            if (DocumentManager.Instance.CurrentDBDocument == null)
             {
-                DocumentManager.Instance.CurrentUIDocument = null;
+                //DocumentManager.Instance.CurrentUIDocument = null;
                 DynamoViewModel.RunEnabled = false;
                 DynamoLogger.Instance.LogWarning(
                     "Dynamo no longer has an active document.",
@@ -386,8 +386,8 @@ namespace Dynamo
             }
             else
             {
-                DocumentManager.Instance.CurrentUIDocument =
-                    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
+                //DocumentManager.Instance.CurrentUIDocument =
+                //    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
                 DynamoViewModel.RunEnabled = true;
                 DynamoLogger.Instance.LogWarning(
                     string.Format(
@@ -402,10 +402,10 @@ namespace Dynamo
         private void Revit_ViewActivated(object sender, ViewActivatedEventArgs e)
         {
             //if Dynamo doesn't have a view, then latch onto this one
-            if (DocumentManager.Instance.CurrentUIDocument == null)
+            if (DocumentManager.Instance.CurrentUIDocument != null)
             {
-                DocumentManager.Instance.CurrentUIDocument =
-                    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
+                //DocumentManager.Instance.CurrentUIDocument =
+                //    DocumentManager.Instance.CurrentUIApplication.ActiveUIDocument;
                 DynamoLogger.Instance.LogWarning(
                     string.Format(
                         "Dynamo is now pointing at document: {0}",
@@ -433,8 +433,13 @@ namespace Dynamo
             {
                 dynSettings.Controller.DynamoModel.Nodes.ToList().ForEach(x => x.ResetOldValue());
 
-                //VisualizationManager.ClearVisualizations();
-                dynSettings.Controller.DynamoModel.Nodes.ForEach(x => x.RenderPackages.Clear());
+                foreach (var node in dynSettings.Controller.DynamoModel.Nodes)
+                {
+                    lock (node.RenderPackagesMutex)
+                    {
+                        node.RenderPackages.Clear();
+                    }
+                }
             }
 
             OnRevitDocumentChanged();
@@ -516,18 +521,18 @@ namespace Dynamo
 
             //If we're in a debug run or not already in the idle thread, then run the Cleanup Delegate
             //from the idle thread. Otherwise, just run it in this thread.
-            if (dynSettings.Controller.DynamoViewModel.RunInDebug || !InIdleThread && !IsTestMode)
-            {
-                RevThread.IdlePromise.ExecuteOnIdleSync(cleanup);
-                RevThread.IdlePromise.ExecuteOnIdleSync(rename);
-                RevThread.IdlePromise.ExecuteOnIdleAsync(TransactionManager.Instance.ForceCloseTransaction);
-            }
-            else
-            {
-                cleanup();
-                rename();
-                TransactionManager.Instance.ForceCloseTransaction();
-            }
+            //if (dynSettings.Controller.DynamoViewModel.RunInDebug || !InIdleThread && !IsTestMode)
+            //{
+            //    RevThread.IdlePromise.ExecuteOnIdleSync(cleanup);
+            //    RevThread.IdlePromise.ExecuteOnIdleSync(rename);
+            //    RevThread.IdlePromise.ExecuteOnIdleAsync(TransactionManager.Instance.ForceCloseTransaction);
+            //}
+            //else
+            //{
+            cleanup();
+            rename();
+            TransactionManager.Instance.ForceCloseTransaction();
+            //}
         }
 
         public override void ShutDown(bool shutDownHost)
@@ -570,7 +575,7 @@ namespace Dynamo
 
         protected override void Run()
         {
-            DocumentManager.Instance.CurrentDBDocument = DocumentManager.Instance.CurrentUIDocument.Document;
+            //DocumentManager.Instance.CurrentDBDocument = DocumentManager.Instance.CurrentUIDocument.Document;
 
             if (DynamoViewModel.RunInDebug)
             {
@@ -875,10 +880,10 @@ namespace Dynamo
         {
             IList<FailureMessageAccessor> failList = failuresAccessor.GetFailureMessages();
 
-            IEnumerable<FailureMessageAccessor> query = from fail in failList
-                                                        let severity = fail.GetSeverity()
-                                                        where severity == FailureSeverity.Warning
-                                                        select fail;
+            IEnumerable<FailureMessageAccessor> query = 
+                from fail in failList
+                where fail.GetSeverity() == FailureSeverity.Warning
+                select fail;
 
             foreach (FailureMessageAccessor fail in query)
             {

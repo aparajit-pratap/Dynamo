@@ -3,12 +3,14 @@ using System.CodeDom;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using Autodesk.DesignScript.Geometry;
+using Autodesk.DesignScript.Runtime;
 
 namespace Revit.GeometryConversion
 {
-    [Browsable(false)]
+    [SupressImportIntoVM]
     public static class RevitToProtoCurve
     {
 
@@ -99,7 +101,7 @@ namespace Revit.GeometryConversion
         }
 
         /// <summary>
-        /// Convert a Revit Ellipse to a ProtoGeometry Ellipse
+        /// Convert a Revit Ellipse to a ProtoGeometry Ellipse or EllipseArc
         /// </summary>
         /// <param name="crv"></param>
         /// <returns></returns>
@@ -110,7 +112,13 @@ namespace Revit.GeometryConversion
 
             if (!isComplete)
             {
-                throw new Exception("Could not create elliptical arc, only full ellipses are allowed.");
+                var pl = Plane.ByOriginXAxisYAxis(crv.Center.ToPoint(),
+                    crv.XDirection.ToVector(), crv.YDirection.ToVector());
+
+                var s = crv.GetEndParameter(0).ToDegrees();
+                var e = crv.GetEndParameter(1).ToDegrees();
+
+                return EllipseArc.ByPlaneRadiiStartAngleSweepAngle(pl, crv.RadiusX, crv.RadiusY, s, e - s);
             }
 
             return Autodesk.DesignScript.Geometry.Ellipse.ByOriginVectors(crv.Center.ToPoint(),

@@ -68,8 +68,8 @@ namespace ProtoCore
 
 
         private int runID;
-        private readonly int classScope;
-        private readonly string methodName;
+        private int classScope;
+        private string methodName;
         private readonly FunctionTable globalFunctionTable;
         private readonly ExecutionMode executionMode;
 
@@ -80,7 +80,13 @@ namespace ProtoCore
         private int invokeCount; //Number of times the callsite has been executed within this run
 
         private Guid callsiteID = Guid.Empty;
-
+        public Guid CallSiteID
+        {
+            get
+            {
+                return callsiteID;
+            }
+        }
 
         public CallSite(int classScope, string methodName, FunctionTable globalFunctionTable, ExecutionMode execMode)
         {
@@ -99,6 +105,12 @@ namespace ProtoCore
             if (execMode == ExecutionMode.Parallel)
                 throw new CompilerInternalException(
                     "Parrallel Mode is not yet implemented {46F83CBB-9D37-444F-BA43-5E662784B1B3}");
+        }
+
+        public void UpdateCallSite(int classScope, string methodName)
+        {
+            this.classScope = classScope;
+            this.methodName = methodName;
         }
 
 
@@ -181,11 +193,14 @@ namespace ProtoCore
         #region Target resolution
 
 
+
+
         private void ComputeFeps(StringBuilder log, ProtoCore.Runtime.Context context, List<StackValue> arguments, FunctionGroup funcGroup, ReplicationControl replicationControl,
                                       List<List<ProtoCore.ReplicationGuide>> partialReplicationGuides, StackFrame stackFrame, Core core,
             out List<FunctionEndPoint> resolvesFeps, out List<ReplicationInstruction> replicationInstructions)
         {
 
+            
 
             //With replication guides only
 
@@ -888,6 +903,9 @@ namespace ProtoCore
 
             #endregion
 
+            partialReplicationGuides = PerformRepGuideDemotion(arguments, partialReplicationGuides, core);
+
+
             //Replication Control is an ordered list of the elements that we have to replicate over
             //Ordering implies containment, so element 0 is the outer most forloop, element 1 is nested within it etc.
             //Take the explicit replication guides and build the replication structure
@@ -900,6 +918,11 @@ namespace ProtoCore
             //Get the fep that are resolved
             List<FunctionEndPoint> resolvesFeps;
             List<ReplicationInstruction> replicationInstructions;
+
+
+
+            arguments = PerformRepGuideForcedPromotion(arguments, partialReplicationGuides, core);
+
 
             ComputeFeps(log, context, arguments, funcGroup, replicationControl, partialReplicationGuides, stackFrame, core, out resolvesFeps, out replicationInstructions);
 
@@ -921,6 +944,7 @@ namespace ProtoCore
 
         }
 
+       
 
         private StackValue Execute(List<FunctionEndPoint> functionEndPoint, ProtoCore.Runtime.Context c,
                                    List<StackValue> formalParameters,
@@ -1055,6 +1079,8 @@ namespace ProtoCore
 
             if (ri.Zipped)
             {
+                ZipAlgorithm algorithm = ri.ZipAlgorithm;
+
                 //For each item in this plane, an array of the length of the minimum will be constructed
 
                 //The size of the array will be the minimum size of the passed arrays
@@ -1063,7 +1089,20 @@ namespace ProtoCore
                 //this will hold the heap elements for all the arrays that are going to be replicated over
                 List<StackValue[]> parameters = new List<StackValue[]>();
 
-                int retSize = Int32.MaxValue;
+                int retSize;
+                switch (algorithm)
+                {
+                    case ZipAlgorithm.Shortest:
+                        retSize = Int32.MaxValue; //Search to find the smallest
+                        break;
+
+                    case ZipAlgorithm.Longest:
+                        retSize = Int32.MinValue; //Search to find the largest
+                        break;
+
+                    default:
+                        throw new ReplicationCaseNotCurrentlySupported("Selected algorithm not supported");
+                }
 
                 foreach (int repIndex in repIndecies)
                 {
@@ -1078,7 +1117,17 @@ namespace ProtoCore
                         subParameters = new StackValue[] { formalParameters[repIndex] };
                     }
                     parameters.Add(subParameters);
-                    retSize = Math.Min(retSize, subParameters.Length); //We need the smallest array
+
+                    switch (algorithm)
+                    {
+                        case ZipAlgorithm.Shortest:
+                            retSize = Math.Min(retSize, subParameters.Length); //We need the smallest array
+                            break;
+                        case ZipAlgorithm.Longest:
+                            retSize = Math.Max(retSize, subParameters.Length); //We need the longest array
+                            break;
+                    }
+
                 }
 
                 StackValue[] retSVs = new StackValue[retSize];
@@ -1088,9 +1137,7 @@ namespace ProtoCore
                 //Populate out the size of the list with default values
                 //@TODO:Luke perf optimisation here
                 for (int i = 0; i < retSize; i++)
-                {
                     retTrace.NestedData.Add(new SingleRunTraceData());
-                }
 
 
                 for (int i = 0; i < retSize; i++)
@@ -1116,7 +1163,30 @@ namespace ProtoCore
 
                     for (int repIi = 0; repIi < repIndecies.Count; repIi++)
                     {
-                        newFormalParams[repIndecies[repIi]] = parameters[repIi][i];
+                        switch (algorithm)
+                        {
+                            case ZipAlgorithm.Shortest:
+                                //If the shortest algorithm is selected this would
+                                newFormalParams[repIndecies[repIi]] = parameters[repIi][i];
+                                break;
+                            
+                            case ZipAlgorithm.Longest:
+
+                                int length = parameters[repIi].Length;
+                                if (i < length)
+                                {
+                                    newFormalParams[repIndecies[repIi]] = parameters[repIi][i];
+                                }
+                                else
+                                {
+                                    newFormalParams[repIndecies[repIi]] = parameters[repIi].Last();
+                                }
+
+                                break;
+                        }
+
+
+                        
                     }
 
                     List<ReplicationInstruction> newRIs = new List<ReplicationInstruction>();
@@ -1385,7 +1455,109 @@ namespace ProtoCore
         }
 
 
+        /// <summary>
+        /// If all the arguments that have rep guides are single values, then strip the rep guides
+        /// </summary>
+        /// <param name="arguments"></param>
+        /// <param name="partialReplicationGuides"></param>
+        /// <param name="core"></param>
+        /// <returns></returns>
+        private static List<List<ReplicationGuide>> PerformRepGuideDemotion(List<StackValue> arguments, List<List<ReplicationGuide>> providedReplicationGuides, Core core)
+        {
+            if (providedReplicationGuides.Count == 0)
+                return providedReplicationGuides;
 
+            //Check if rep guide demotion needed (each time there is a rep guide, the value is a single)
+            for (int i = 0; i < arguments.Count; i++)
+            {
+                if (providedReplicationGuides[i].Count == 0)
+                {
+                    continue; //Ignore this case
+                }
+
+
+                //We have rep guides
+                if (StackUtils.IsArray(arguments[i]))
+                {
+                    //Rep guides on array, use guides as provided
+                    return providedReplicationGuides;
+                }
+
+            }
+
+            //Everwhere where we have replication guides, we have single values
+            //drop the guides
+            return new List<List<ReplicationGuide>>();
+
+        }
+
+
+
+
+
+        /// <summary>
+        /// Method to ensure that dimensionality of the arguments is at least
+        /// as large as the number of replication guides provided
+        /// </summary>
+        /// <param name="arguments"></param>
+        /// <param name="providedRepGuides"></param>
+        /// <param name="core"></param>
+        /// <returns></returns>
+        public static List<StackValue> PerformRepGuideForcedPromotion(List<StackValue> arguments,
+                                                                      List<List<ProtoCore.ReplicationGuide>>
+                                                                          providedRepGuides, Core core)
+        {
+            //return arguments; // no nothing for test validation
+
+
+            if (providedRepGuides.Count == 0)
+                return arguments;
+
+            //copy the arguments
+
+            List<StackValue> newArgs = new List<StackValue>();
+            newArgs.AddRange(arguments);
+
+
+            //Compute depth of rep guides
+            List<int> listOfGuidesCounts =  providedRepGuides.Select((x) => x.Count).ToList();
+            List<int> maxDepths = new List<int>();
+
+
+            for (int i = 0; i < newArgs.Count; i++)
+            {
+                maxDepths.Add(Replicator.GetMaxReductionDepth(newArgs[i], core));
+            }
+
+            for (int i = 0; i < newArgs.Count; i++)
+            {
+                int promotionsRequired = listOfGuidesCounts[i] - maxDepths[i];
+                StackValue oldSv = newArgs[i];
+
+                
+                for (int p = 0; p < promotionsRequired; p++)
+                {
+
+                    StackValue newSV = HeapUtils.StoreArray(
+                        new StackValue[1]
+                            {
+                                oldSv
+                            }
+                        , null, core);
+
+                    GCUtils.GCRetain(newSV, core);
+                    GCUtils.GCRelease(oldSv, core);
+
+                    oldSv = newSV;
+                }
+
+                newArgs[i] = oldSv;
+
+            }
+
+            return newArgs;
+
+        }
 
         public static StackValue PerformReturnTypeCoerce(ProcedureNode procNode, Core core, StackValue ret)
         {
