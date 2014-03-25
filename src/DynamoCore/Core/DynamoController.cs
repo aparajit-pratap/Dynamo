@@ -44,6 +44,8 @@ namespace Dynamo
 
     public delegate void ImageSaveEventHandler(object sender, ImageSaveEventArgs e);
 
+    public delegate void GraphUpdatedDelegate();
+
     public class DynamoController:NotificationObject
     {
         private static bool testing = false;
@@ -169,6 +171,14 @@ namespace Dynamo
         /// An event triggered when evaluation completes.
         /// </summary>
         public event EventHandler EvaluationCompleted;
+
+        public event GraphUpdatedDelegate GraphUpdatedEvent;
+
+        public virtual void OnGraphUpdated()
+        {
+            if (GraphUpdatedEvent != null)
+                GraphUpdatedEvent();
+        }
 
         /// <summary>
         /// An event which requests that a node be selected
@@ -576,6 +586,7 @@ namespace Dynamo
                     throw new Exception(ex.Message);
             }
 
+            OnGraphUpdated();
             OnEvaluationCompleted(this, EventArgs.Empty);
         }
 

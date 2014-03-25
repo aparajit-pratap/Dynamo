@@ -26,7 +26,7 @@ namespace DynamoWrapper
 {
     public class DynamoCSharpWrapper
     {
-        protected static DynamoController Controller { get; set; }
+        public static DynamoController Controller { get; private set; }
 
         protected static DynamoViewModel Vm { get; set; }
 
@@ -45,7 +45,8 @@ namespace DynamoWrapper
         public static void StartUI(bool enableDynamicRun)
         {
             //create the view   
-            Controller.DynamoViewModel.DynamicRunEnabled = enableDynamicRun;
+            if(Controller != null)
+                Controller.DynamoViewModel.DynamicRunEnabled = enableDynamicRun;
             
             if(Ui != null)
                 Ui.Show();
