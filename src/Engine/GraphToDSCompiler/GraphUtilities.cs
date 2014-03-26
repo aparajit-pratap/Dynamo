@@ -299,7 +299,8 @@ namespace GraphToDSCompiler
                 importedAssemblies[MD5Hash(assembly)] = assemblyPath;
 
                 string importStatement = "import (" + '"'.ToString() + assemblyPath + '"'.ToString() + ")";
-                expression = expression + importStatement + ';'.ToString();
+                //expression = expression + importStatement + ';'.ToString();
+                expression = importStatement + ';'.ToString();
 
                 ProtoCore.BuildStatus status = null;
                 if (!string.IsNullOrEmpty(expression))

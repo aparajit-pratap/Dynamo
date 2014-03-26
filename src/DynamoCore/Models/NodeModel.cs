@@ -533,9 +533,12 @@ namespace Dynamo.Models
                 throw new ArgumentOutOfRangeException("outputIndex", @"Index must correspond to an OutPortData index.");
 
             if (OutPortData.Count == 1)
-                return AstFactory.BuildIdentifier((IsPartiallyApplied ? "_local_" : "") + AstIdentifierBase);
+            {
+                //return AstFactory.BuildIdentifier((IsPartiallyApplied ? "_local_" : "") + AstIdentifierBase);
+                return AstFactory.BuildIdentifier((IsPartiallyApplied ? "_local_" : "") + AstIdentifierForPreview.Name);
+            }
 
-            //string nameAndValue = AstIdentifierBase + "[" + outputIndex + "]";
+            //string id = AstIdentifierBase + "_out" + outputIndex;
             string id = AstIdentifierForPreview.Name + "_out" + outputIndex;
             return AstFactory.BuildIdentifier(id);
         }
