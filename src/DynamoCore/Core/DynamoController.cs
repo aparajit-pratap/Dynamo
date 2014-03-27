@@ -174,7 +174,7 @@ namespace Dynamo
 
         public event GraphUpdatedDelegate GraphUpdatedEvent;
 
-        public virtual void OnGraphUpdated()
+        public virtual void OnGraphUpdated(object sender, RunWorkerCompletedEventArgs args)
         {
             if (GraphUpdatedEvent != null)
                 GraphUpdatedEvent();
@@ -418,6 +418,8 @@ namespace Dynamo
 
                 //Let's start
                 worker.RunWorkerAsync();
+
+                worker.RunWorkerCompleted += OnGraphUpdated;                
             }
             else
                 //for testing, we do not want to run
@@ -586,8 +588,8 @@ namespace Dynamo
                     throw new Exception(ex.Message);
             }
 
-            OnGraphUpdated();
             OnEvaluationCompleted(this, EventArgs.Empty);
+            //OnGraphUpdated();
         }
 
         //protected virtual void Run(List<NodeModel> topElements, FScheme.Expression runningExpression)
