@@ -79,5 +79,11 @@ namespace DynamoWrapper
             codeToNode.CreateNodeFromAST(astNode, methodMirror);
         }
 
+        public static void Shutdown()
+        {
+            if (Controller != null)
+                Controller.ShutDown(true);
+        }
+
     }
 }

@@ -89,6 +89,21 @@ namespace Dynamo.Controls
             InfoBubbleGrid.Children.Add(InfoBubble);
         }
 
+        public DynamoView(bool hideOnClosing)
+            : this()
+        {
+            if (hideOnClosing)
+            {
+                this.Closing -= WindowClosing;
+                this.Closing += HideOnClose;
+            }
+        }
+
+        void HideOnClose(object sender, CancelEventArgs e)
+        {
+            this.Hide();
+        }
+
         void InitializeShortcutBar()
         {
             ShortcutToolbar shortcutBar = new ShortcutToolbar();

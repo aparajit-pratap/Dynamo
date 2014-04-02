@@ -574,6 +574,13 @@ namespace ProtoCore.DSASM
             }
         }
 
+        internal Namespace.Symbol GetSymbol(int UID)
+        {
+            Namespace.Symbol symbol = null;
+            symbolTable.TryGetExactSymbol(GetTypeName(UID), out symbol);
+            return symbol;
+        }
+
         /// <summary>
         /// Audits the class table for multiple symbol definition.
         /// </summary>

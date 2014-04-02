@@ -443,6 +443,11 @@ namespace Dynamo.Models
             get { return identifier ?? (identifier = AstFactory.BuildIdentifier(AstIdentifierBase)); }
         }
 
+		public void SetAstIdentifier(string name)
+        {
+            identifier = new IdentifierNode { Name = name, Value = name };
+        }
+
         /// <summary>
         ///     If this node is allowed to be converted to AST node in nodes to code conversion.
         /// </summary>
@@ -520,9 +525,13 @@ namespace Dynamo.Models
                 throw new ArgumentOutOfRangeException("outputIndex", @"Index must correspond to an OutPortData index.");
 
             if (OutPortData.Count == 1)
-                return AstFactory.BuildIdentifier(/* (IsPartiallyApplied ? "_local_" : "") + */ AstIdentifierBase);
+			{
+                //return AstFactory.BuildIdentifier(/* (IsPartiallyApplied ? "_local_" : "") + */ AstIdentifierBase);
+				return AstFactory.BuildIdentifier(/*(IsPartiallyApplied ? "_local_" : "") +*/ AstIdentifierForPreview.Name);
+			}			
 
-            string id = AstIdentifierBase + "_out" + outputIndex;
+            //string id = AstIdentifierBase + "_out" + outputIndex;
+			string id = AstIdentifierForPreview.Name + "_out" + outputIndex;
             return AstFactory.BuildIdentifier(id);
         }
 

@@ -45,6 +45,8 @@ namespace Dynamo
 
     public delegate void ImageSaveEventHandler(object sender, ImageSaveEventArgs e);
 
+    public delegate void GraphUpdatedDelegate();
+
     public class DynamoController:NotificationObject
     {
         private static bool testing = false;
@@ -169,6 +171,14 @@ namespace Dynamo
         /// An event triggered when evaluation completes.
         /// </summary>
         public event EventHandler EvaluationCompleted;
+
+        public event GraphUpdatedDelegate GraphUpdatedEvent;
+
+        public virtual void OnGraphUpdated(object sender, RunWorkerCompletedEventArgs args)
+        {
+            if (GraphUpdatedEvent != null)
+                GraphUpdatedEvent();
+        }
 
         /// <summary>
         /// An event which requests that a node be selected
@@ -425,6 +435,8 @@ namespace Dynamo
 
                 //Let's start
                 worker.RunWorkerAsync();
+
+                worker.RunWorkerCompleted += OnGraphUpdated;                
             }
             else
                 //for testing, we do not want to run

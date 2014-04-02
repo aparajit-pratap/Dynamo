@@ -322,12 +322,31 @@ namespace Dynamo
             var worker = new BackgroundWorker();
 
             worker.DoWork += UpdateRenderPackagesThread;
+            //worker.RunWorkerCompleted += VisualizationWorkerCompleted;
 
+            //if (DynamoController.IsTestMode)
+            //    UpdateRenderPackagesThread(null, new DoWorkEventArgs(toUpdate));
             if (DynamoController.IsTestMode)
+            {
                 UpdateRenderPackagesThread(null, new DoWorkEventArgs(toUpdate));
+                //OnVisualizationUpdateComplete(this, EventArgs.Empty);
+
+            }
             else
                 worker.RunWorkerAsync(toUpdate);   
         }
+
+//        private void VisualizationWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+//        {
+//            try
+//            {
+//                OnVisualizationUpdateComplete(this, EventArgs.Empty);
+//            }
+//            catch (Exception exception)
+//            {
+//                DynamoLogger.Instance.Log(exception);
+//            }
+//        }
 
         void UpdateRenderPackagesThread(object sender, DoWorkEventArgs e)
         {

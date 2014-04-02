@@ -145,12 +145,12 @@ namespace ProtoCore
         {
             filename = filename ?? string.Empty;
 
-            if (!this.core.Options.IsDeltaExecution && (string.IsNullOrEmpty(filename) || 
-                line == Constants.kInvalidIndex || 
-                col == Constants.kInvalidIndex))
-            {
-                CodeGen.AuditCodeLocation(core, ref filename, ref line, ref col);
-            }
+            //if (!this.core.Options.IsDeltaExecution && (string.IsNullOrEmpty(filename) || 
+            //    line == Constants.kInvalidIndex || 
+            //    col == Constants.kInvalidIndex))
+            //{
+            //    CodeGen.AuditCodeLocation(core, ref filename, ref line, ref col);
+            //}
 
             var warningMsg = string.Format(WarningMessage.kConsoleWarningMessage, 
                                            message, filename, line, col);
