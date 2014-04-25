@@ -1,21 +1,33 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Revit;
+using Autodesk.DesignScript.Geometry;
 using Revit.Elements;
 using Revit.Elements.Views;
-using Revit.GeometryObjects;
 using NUnit.Framework;
 using RevitServices.Persistence;
 using Point = Autodesk.DesignScript.Geometry.Point;
+using Dynamo.Tests;
 
 namespace DSRevitNodesTests
 {
     [TestFixture]
-    class SectionViewTests
+    class SectionViewTests : RevitNodeTestBase
     {
+        [SetUp]
+        public void Setup()
+        {
+            HostFactory.Instance.StartUp();
+            base.Setup();
+        }
+
+        [TearDown]
+        public void Teardown()
+        {
+            HostFactory.Instance.ShutDown();
+            base.TearDown();
+        }
+
         [Test]
+        [TestModel(@".\Empty.rvt")]
         public void ByBoundingBox_ValidArgs()
         {
             var famSym = FamilySymbol.ByName("Kousa Dogwood - 10'");
@@ -30,6 +42,7 @@ namespace DSRevitNodesTests
         }
 
         [Test]
+        [TestModel(@".\Empty.rvt")]
         public void ByBoundingBox_NullArgs()
         {
             Assert.Throws(typeof(ArgumentNullException), () => SectionView.ByBoundingBox(null));

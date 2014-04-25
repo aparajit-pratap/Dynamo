@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
@@ -21,37 +22,56 @@ using RevitServices.Persistence;
 
 namespace RevitServices.Elements
 {
-    public class RevitServicesUpdater : IDisposable // : IUpdater
+    public class RevitServicesUpdater : IDisposable
     {
-        //static UpdaterId _mUpdaterId;
-
         //TODO: To handle multiple documents, should store unique ids as opposed to ElementIds.
-
-        private readonly Dictionary<ElementId, ElementUpdateDelegate> _deletedCallbacks = new Dictionary<ElementId, ElementUpdateDelegate>();
-        private readonly Dictionary<ElementId, ElementUpdateDelegate> _modifiedCallbacks = new Dictionary<ElementId, ElementUpdateDelegate>();
 
         private readonly ControlledApplication application;
 
         public event ElementUpdateDelegate ElementsAdded;
+        public event ElementUpdateDelegateElementId ElementAddedForID;
+        public event ElementUpdateDelegate ElementsModified;
+        public event ElementDeleteDelegate ElementsDeleted;
 
-        protected virtual void OnElementsAdded(HashSet<ElementId> updated)
+        #region Event Invokers
+
+        protected virtual void OnElementsAdded(IEnumerable<string> updated)
         {
             var handler = ElementsAdded;
             if (handler != null) handler(updated);
         }
 
+        protected virtual void OnElementsAdded(Document doc, IEnumerable<ElementId> updated)
+        {
+            var handler = ElementAddedForID;
+            if (handler != null) handler(doc, updated);
+        }
+
+
+        protected virtual void OnElementsModified(IEnumerable<string> updated)
+        {
+            var handler = ElementsModified;
+            if (handler != null) handler(updated);
+        }
+
+        protected virtual void OnElementsDeleted(Document document, IEnumerable<ElementId> deleted)
+        {
+            var handler = ElementsDeleted;
+            if (handler != null) handler(document, deleted);
+        }
+
+        #endregion
+
         // constructor takes the AddInId for the add-in associated with this updater
         public RevitServicesUpdater(/*AddInId id, */ControlledApplication app)
         {
-            //_mUpdaterId = new UpdaterId(id, new Guid("1F1F44B4-8002-4CC1-8FDB-17ACD24A2ECE")); //[Guid("1F1F44B4-8002-4CC1-8FDB-17ACD24A2ECE")]
-
             application = app;
-            application.DocumentChanged += Application_DocumentChanged;
+            application.DocumentChanged += ApplicationDocumentChanged;
         }
 
         public void Dispose()
         {
-            application.DocumentChanged -= Application_DocumentChanged;
+            application.DocumentChanged -= ApplicationDocumentChanged;
         }
 
         //TODO: remove once we are using unique ids
@@ -66,107 +86,33 @@ namespace RevitServices.Elements
         /// <summary>
         /// Forces all deletion callbacks to be called for given sequence of elements.
         /// </summary>
+        /// <param name="doc">Document to perform the Rollback on.</param>
         /// <param name="deleted">Sequence of elements to have registered deletion callbacks invoked.</param>
-        public void RollBack(IEnumerable<ElementId> deleted)
+        public void RollBack(Document doc, ICollection<ElementId> deleted)
         {
-            var empty = new List<ElementId>();
-            ProcessUpdates(empty, deleted, empty);
+            var empty = new List<string>();
+            ProcessUpdates(doc, empty, deleted, empty, new List<ElementId>());
         }
 
-        private void ProcessUpdates(IEnumerable<ElementId> modified, IEnumerable<ElementId> deleted, IEnumerable<ElementId> added)
+        private void ProcessUpdates(Document doc, IEnumerable<string> modified, 
+            IEnumerable<ElementId> deleted, IEnumerable<string> added, 
+            IEnumerable<ElementId> addedIds )
         {
-            #region Modified
-
-            var dict = new Dictionary<ElementUpdateDelegate, HashSet<ElementId>>();
-            foreach (ElementId modifiedElementID in modified)
-            {
-                if (!_modifiedCallbacks.ContainsKey(modifiedElementID))
-                    continue;
-
-                var k = _modifiedCallbacks[modifiedElementID];
-                if (!dict.ContainsKey(k))
-                    dict[k] = new HashSet<ElementId>();
-                dict[k].Add(modifiedElementID);
-            }
-
-            foreach (var pair in dict)
-                pair.Key(pair.Value);
-
-            #endregion
-
-            #region Deleted
-
-            dict.Clear();
-            foreach (ElementId deletedElementID in deleted)
-            {
-                if (!_deletedCallbacks.ContainsKey(deletedElementID))
-                    continue;
-
-                var k = _deletedCallbacks[deletedElementID];
-                if (!dict.ContainsKey(k))
-                    dict[k] = new HashSet<ElementId>();
-                dict[k].Add(deletedElementID);
-            }
-
-            foreach (var pair in dict)
-                pair.Key(pair.Value);
-
-            #endregion
-
-            #region Added
-
-            OnElementsAdded(new HashSet<ElementId>(added));
-
-            #endregion
+            OnElementsModified(modified.Distinct());
+            OnElementsDeleted(doc, deleted.Distinct());
+            OnElementsAdded(added.Distinct());
+            OnElementsAdded(doc, addedIds);
         }
 
-        void Application_DocumentChanged(object sender, DocumentChangedEventArgs args)
+        void ApplicationDocumentChanged(object sender, DocumentChangedEventArgs args)
         {
-            if (args.GetDocument().Equals(DocumentToWatch))
-            {
-                ProcessUpdates(
-                   args.GetModifiedElementIds(),
-                   args.GetDeletedElementIds(),
-                   args.GetAddedElementIds());
-            }
-        }
+            var doc = args.GetDocument();
+            var added = args.GetAddedElementIds().Select(x => doc.GetElement(x).UniqueId);
+            var addedIds = args.GetAddedElementIds();
+            var modified = args.GetModifiedElementIds().Select(x => doc.GetElement(x).UniqueId).ToList();
+            var deleted = args.GetDeletedElementIds();
 
-        /// <summary>
-        /// Watches for changes of the given type to the Element with the given ID. When changed, executes
-        /// the given Delegate.
-        /// </summary>
-        /// <param name="e">ID of the Element being watched.</param>
-        /// <param name="type">Type of change to watch for.</param>
-        /// <param name="d">Delegate to be called when changed.</param>
-        public void RegisterChangeHook(ElementId e, ChangeType type, ElementUpdateDelegate d)
-        {
-            switch (type)
-            {
-                case ChangeType.Delete:
-                    _deletedCallbacks[e] = d;
-                    break;
-                case ChangeType.Modify:
-                    _modifiedCallbacks[e] = d;
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Unregisters an element that has been registered via RegisterChangeHook()
-        /// </summary>
-        /// <param name="e">ID of the Element to unregister.</param>
-        /// <param name="type">Type of change to unsubscribe from.</param>
-        public void UnRegisterChangeHook(ElementId e, ChangeType type)
-        {
-            switch (type)
-            {
-                case ChangeType.Delete:
-                    _deletedCallbacks.Remove(e);
-                    break;
-                case ChangeType.Modify:
-                    _modifiedCallbacks.Remove(e);
-                    break;
-            }
+            ProcessUpdates(doc, modified, deleted, added, addedIds);
         }
 
         /// <summary>
@@ -175,50 +121,31 @@ namespace RevitServices.Elements
         /// </summary>
         public void UnRegisterAllChangeHooks()
         {
-            _deletedCallbacks.Clear();
-            _modifiedCallbacks.Clear();
             ElementsAdded = null;
+            ElementsModified = null;
+            ElementsDeleted = null;
         }
-
-        /* Disabled IUpdater Methods
-        public void Execute(UpdaterData data)
-        {
-            ProcessUpdates(
-               data.GetModifiedElementIds(),
-               data.GetDeletedElementIds(),
-               data.GetAddedElementIds());
-        }
-
-        public string GetAdditionalInformation()
-        {
-            return "Watch for user-selected elements that have been changed or deleted and use this info to update Dynnamo";
-        }
-
-        public ChangePriority GetChangePriority()
-        {
-            return ChangePriority.FloorsRoofsStructuralWalls;
-        }
-
-        public UpdaterId GetUpdaterId()
-        {
-            return _mUpdaterId;
-        }
-
-        public string GetUpdaterName()
-        {
-            return "Dyanmo Element Watcher";
-        }*/
     }
 
     /// <summary>
     /// Callback for when Elements have been updated.
     /// </summary>
     /// <param name="updated">All modified elements that have been registered with this callback.</param>
-    public delegate void ElementUpdateDelegate(HashSet<ElementId> updated);
+    public delegate void ElementUpdateDelegate(IEnumerable<string> updated);
 
-    public enum ChangeType
-    {
-        Delete,
-        Modify
-    };
+
+    /// <summary>
+    /// Callback for when Elements have been updated.
+    /// Recoemnt using the UUID version instead
+    /// </summary>
+    /// <param name="updated">All modified elements that have been registered with this callback.</param>
+    public delegate void ElementUpdateDelegateElementId(Document document, IEnumerable<ElementId> deleted);
+
+
+    /// <summary>
+    ///     Callback for when Elements have been deleted.
+    /// </summary>
+    /// <param name="document">Document from which deleted elements originated.</param>
+    /// <param name="deleted">The deleted ElementIds.</param>
+    public delegate void ElementDeleteDelegate(Document document, IEnumerable<ElementId> deleted);
 }

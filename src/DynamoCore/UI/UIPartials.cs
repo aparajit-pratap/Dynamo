@@ -348,7 +348,7 @@ namespace Dynamo.Nodes
                 CanEditName = false
             };
 
-            dynSettings.Controller.DynamoModel.OnRequestsFunctionNamePrompt(this, args);
+            dynSettings.Controller.DynamoViewModel.OnRequestsFunctionNamePrompt(this, args);
 
             if (args.Success)
             {
@@ -362,7 +362,8 @@ namespace Dynamo.Nodes
                 workspace.Description = args.Description;
                 workspace.Category = args.Category;
 
-                workspace.Save();
+                if (workspace.FileName != null)
+                    workspace.Save();
             }
         }
 
@@ -391,7 +392,9 @@ namespace Dynamo.Nodes
             //add a drop down list to the window
             var combo = new ComboBox
             {
-                Width = 300,
+                Width = System.Double.NaN,
+                MinWidth = 100,
+                Height = Configurations.PortHeightInPixels,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -551,11 +554,7 @@ namespace Dynamo.Nodes
         public void SetupCustomUIElements(dynNodeView nodeUI)
         {
             _watchTree = new WatchTree();
-
-            nodeUI.grid.Children.Add(_watchTree);
-            _watchTree.SetValue(Grid.RowProperty, 2);
-            _watchTree.SetValue(Grid.ColumnSpanProperty, 3);
-            _watchTree.Margin = new Thickness(5, 0, 5, 5);
+            nodeUI.PresentationGrid.Children.Add(_watchTree);
 
             if (Root == null)
                 Root = new WatchViewModel();

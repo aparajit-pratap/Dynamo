@@ -20,7 +20,6 @@ namespace ProtoCore.Lang
             kCountFalse,
             kDifference,
             kDot,
-            kDotDynamic,
             kEquals,
             kGetElapsedTime,
             kGetType,
@@ -82,7 +81,6 @@ namespace ProtoCore.Lang
             "CountFalse",               // kCountFalse
             "SetDifference",            // kDifference
             "%dot",                     // kDot
-            "%dotDynamicResolve",       // kDotDynamic
             "Equals",                   // kEquals
             "GetElapsedTime",           // kGetElapsedTime
             "%get_type",                // kGetType
@@ -688,7 +686,8 @@ namespace ProtoCore.Lang
                     {
                         new KeyValuePair<string, ProtoCore.Type>("Array", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank)),
                     },
-                    ID = BuiltInMethods.MethodID.kTranspose
+                    ID = BuiltInMethods.MethodID.kTranspose,
+                    MethodAttributes = new MethodAttributes(true)
                 },
 
                 new BuiltInMethod
@@ -700,7 +699,8 @@ namespace ProtoCore.Lang
                         new KeyValuePair<string, ProtoCore.Type>("end", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, 0)),
                         new KeyValuePair<string, ProtoCore.Type>("step", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, 0)),
                         new KeyValuePair<string, ProtoCore.Type>("op", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeInt, 0)),
-                        new KeyValuePair<string, ProtoCore.Type>("nostep", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeBool, 0))
+                        new KeyValuePair<string, ProtoCore.Type>("nostep", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeBool, 0)),
+                        new KeyValuePair<string, ProtoCore.Type>("hasAmountOp", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeBool, 0))
                     },
                     ID = BuiltInMethods.MethodID.kRangeExpression
                 },
@@ -764,18 +764,6 @@ namespace ProtoCore.Lang
                         new KeyValuePair<string, ProtoCore.Type>("lhsPtr", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank)),
                     },
                     ID = BuiltInMethods.MethodID.kDot
-                },
-
-                new BuiltInMethod
-                {
-                    ReturnType = TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank),
-                    Parameters = new List<KeyValuePair<string, ProtoCore.Type>>
-                    {
-                        new KeyValuePair<string, ProtoCore.Type>("lhsPtr", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank)),
-                        new KeyValuePair<string, ProtoCore.Type>("functionIndex", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeInt, Constants.kArbitraryRank))
-                    },
-                    ID = BuiltInMethods.MethodID.kDotDynamic
-
                 },
 
                 new BuiltInMethod
@@ -892,7 +880,8 @@ namespace ProtoCore.Lang
                     Parameters = new List<KeyValuePair<string, Type>>
                     {
                         new KeyValuePair<string, Type>("functionPointer", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeFunctionPointer, 0)),
-                        new KeyValuePair<string, Type>("params", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank))
+                        new KeyValuePair<string, Type>("params", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeVar, Constants.kArbitraryRank)),
+                        new KeyValuePair<string, Type>("unpackParams", TypeSystem.BuildPrimitiveTypeObject(PrimitiveType.kTypeBool, 0))
                     },
                     ID = MethodID.kEvaluate,
                     MethodAttributes = new MethodAttributes(true),

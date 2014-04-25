@@ -1,84 +1,159 @@
-﻿using System.IO;
-using System.Linq;
+﻿using System;
+using System.IO;
 using Dynamo.Nodes;
 using Dynamo.Selection;
+using System.Linq;
 using Dynamo.Utilities;
 using NUnit.Framework;
-using ModelCurve = Autodesk.Revit.DB.ModelCurve;
-using XYZ = Autodesk.Revit.DB.XYZ;
+using DSCoreNodesUI;
+using DSCore.File;
+using Revit.Elements;
 namespace Dynamo.Tests
 {
     [TestFixture]
-    class SampleTests:DynamoRevitUnitTestBase
+    class SampleTests : DynamoRevitUnitTestBase
     {
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void CreatePointSequenceSample()
         {
             var model = dynSettings.Controller.DynamoModel;
+            OpenModel(@".\01 Create Point\create point_sequence.dyn");
 
-            string samplePath = Path.Combine(_samplesPath, @".\01 Create Point\create point_sequence.dyn");
-            string testPath = Path.GetFullPath(samplePath);
+            // check all the nodes and connectors are loaded
+            Assert.AreEqual(8, model.CurrentWorkspace.Nodes.Count);
+ 	        Assert.AreEqual(8, model.CurrentWorkspace.Connectors.Count);
+            AssertNoDummyNodes();
 
-            model.Open(testPath);
-            dynSettings.Controller.RunExpression(true);
+            // evaluate  graph
+            RunCurrentModel();
+
+            var refPtNodeId = "d615cc73-d32d-4b1f-b519-0b8f9b903ebf";
+            AssertPreviewCount(refPtNodeId, 9);
+
+            // get 8th reference point
+            var refPt = GetPreviewValueAtIndex(refPtNodeId, 8) as ReferencePoint;
+            Assert.IsNotNull(refPt);
+            Assert.AreEqual(80, refPt.Z);
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void CreatePointEndSample()
         {
             var model = dynSettings.Controller.DynamoModel;
+            OpenModel(@".\01 Create Point\create point - end.dyn");
 
-            string samplePath = Path.Combine(_samplesPath, @".\01 Create Point\create point - end.dyn");
-            string testPath = Path.GetFullPath(samplePath);
+            // check all the nodes and connectors are loaded
+            Assert.AreEqual(5, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(4, model.CurrentWorkspace.Connectors.Count);
+            AssertNoDummyNodes();
 
-            //test running the expression
-            model.Open(testPath);
-            dynSettings.Controller.RunExpression(true);
+            RunCurrentModel();
 
-            //test copying and pasting the workflow
+            // test copying and pasting the workflow
             DynamoSelection.Instance.ClearSelection();
             DynamoSelection.Instance.Selection.AddRange(dynSettings.Controller.DynamoModel.Nodes);
             model.Copy(null);
             model.Paste(null);
+
+            // evaluate graph
+            var refPtNodeId = "16d1ceb2-c780-45d1-9dfb-d9c49836a931";
+            var refPt = GetPreviewValue(refPtNodeId) as ReferencePoint;
+            Assert.IsNotNull(refPt);
+            Assert.AreEqual(0, refPt.Z);
+
+            // change slider value and re-evaluate graph
+            DoubleSlider slider = model.CurrentWorkspace.NodeFromWorkspace("2eb70bdb-773d-4cf4-a10e-828dd39a0cca") as DoubleSlider;
+            slider.Value = 56.78;
+            RunCurrentModel();
+
+            refPt = GetPreviewValue(refPtNodeId) as ReferencePoint;
+            Assert.IsNotNull(refPt);
+            Assert.AreEqual(56.78, refPt.Z);
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void CreatePointSample()
         {
             var model = dynSettings.Controller.DynamoModel;
+            OpenModel(@".\01 Create Point\create point.dyn");
 
-            string samplePath = Path.Combine(_samplesPath, @".\01 Create Point\create point.dyn");
-            string testPath = Path.GetFullPath(samplePath);
+            // check all the nodes and connectors are loaded
+            Assert.AreEqual(2, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(1, model.CurrentWorkspace.Connectors.Count);
+            AssertNoDummyNodes();
 
-            model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            // evaluate graph
+            RunCurrentModel();
+
+            var refPtNodeId = "f4088a7b-823a-49e8-936c-3c56d1a99455";
+            var refPt = GetPreviewValue(refPtNodeId) as ReferencePoint;
+            Assert.IsNotNull(refPt);
+            Assert.AreEqual(0, refPt.Z);
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void RefGridSlidersSample()
         {
             var model = dynSettings.Controller.DynamoModel;
+            OpenModel(@".\02 Ref Grid Sliders\ref grid sliders.dyn");
 
-            string samplePath = Path.Combine(_samplesPath, @".\02 Ref Grid Sliders\ref grid sliders.dyn");
-            string testPath = Path.GetFullPath(samplePath);
+            // check all the nodes and connectors are loaded
+            Assert.GreaterOrEqual(8, model.CurrentWorkspace.Nodes.Count);
+            Assert.GreaterOrEqual(10, model.CurrentWorkspace.Connectors.Count);
+            AssertNoDummyNodes();
 
-            model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            // evaluate graph
+            RunCurrentModel();
+
+            var refPtNodeId = "69dcdcdc-941f-46f9-8e8b-242b61e74e80";
+            AssertPreviewCount(refPtNodeId, 36);
+            
+            var refPt = GetPreviewValueAtIndex(refPtNodeId, 3) as ReferencePoint;
+            Assert.IsNotNull(refPt);
+            Assert.AreEqual(57, refPt.Y);
+
+            // change slider value and re-evaluate graph
+            DoubleSlider slider = model.CurrentWorkspace.NodeFromWorkspace("5adff29b-3cac-4387-8d1d-b75ceb9c6dec") as DoubleSlider;
+            slider.Value = 3.5;
+
+            RunCurrentModel();
+            AssertPreviewCount(refPtNodeId, 16);
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void RefGridSlidersEndSample()
         {
             var model = dynSettings.Controller.DynamoModel;
+            OpenModel(@".\02 Ref Grid Sliders\ref grid sliders - end.dyn");
 
-            string samplePath = Path.Combine(_samplesPath, @".\02 Ref Grid Sliders\ref grid sliders - end.dyn");
-            string testPath = Path.GetFullPath(samplePath);
+            // check all the nodes and connectors are loaded
+            Assert.GreaterOrEqual(9, model.CurrentWorkspace.Nodes.Count);
+            Assert.GreaterOrEqual(11, model.CurrentWorkspace.Connectors.Count);
+            AssertNoDummyNodes();
 
-            model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            // evaluate graph
+            //DSRevitNodesUI.FamilyTypes famTypes =
+                //model.CurrentWorkspace.NodeFromWorkspace("84ad80e7-2497-4637-a346-c1aea914dc43")
+                //as DSRevitNodesUI.FamilyTypes;
+            //famTypes.SelectedIndex = 70;
+
+            RunCurrentModel();
+
+            var famInstNodeId = "fc83b9b2-42c6-4a9f-8f60-a6ee29ef8a34";
+            AssertPreviewCount(famInstNodeId, 36);
+
+            var famInst = GetPreviewValueAtIndex(famInstNodeId, 3) as FamilyInstance;
+            Assert.IsNotNull(famInst);
+            Assert.IsNotNullOrEmpty(famInst.Name);
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void DivideSelectedCurveEndSample()
         {
             //var model = dynSettings.Controller.DynamoModel;
@@ -101,6 +176,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void DivideSelectedCurveSample()
         {
             //var model = dynSettings.Controller.DynamoModel;
@@ -123,6 +199,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void FormFromCurveSelectionListSample()
         {
             //var model = dynSettings.Controller.DynamoModel;
@@ -149,6 +226,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void FormFromCurveSelectionSample()
         {
             //var model = dynSettings.Controller.DynamoModel;
@@ -173,6 +251,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void GraphFunctionAndConnectPointsSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -189,10 +268,22 @@ namespace Dynamo.Tests
             Assert.IsTrue(dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath2) != null);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void ScalableGraphFunctionSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -201,11 +292,22 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
 
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void GraphFunctionSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -218,10 +320,20 @@ namespace Dynamo.Tests
             Assert.IsTrue(dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath) != null);
 
             model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
+            dynSettings.Controller.RunExpression(true);
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\08 Get Set Family Params\inst param.rvt")]
         public void InstParamSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -230,10 +342,20 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
+            dynSettings.Controller.RunExpression(true);
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\08 Get Set Family Params\inst param mass families.rvt")]
         public void InstParam2MassesSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -242,10 +364,21 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
-            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
+            dynSettings.Controller.RunExpression(true);
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\08 Get Set Family Params\inst param mass families.rvt")]
         public void InstParam2MassesDrivingEachOtherSample()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -254,6 +387,16 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
         }
 
@@ -264,6 +407,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Attractor_1()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -273,6 +417,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(15, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(20, model.CurrentWorkspace.Connectors.Count);
@@ -281,6 +434,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Attractor_2()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -290,6 +444,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(17, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(17, model.CurrentWorkspace.Connectors.Count);
@@ -298,6 +461,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\11 Indexed Family Instances\IndexedFamilyInstances.rfa")]
         public void IndexedFamilyInstances()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -307,6 +471,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(12, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(13, model.CurrentWorkspace.Connectors.Count);
@@ -314,7 +487,8 @@ namespace Dynamo.Tests
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
         }
 
-        [Ignore]
+        [Test]
+        [TestModel(@".\empty.rfa")]
         public void AdaptiveComponentPlacement()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -324,6 +498,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(11, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(10, model.CurrentWorkspace.Connectors.Count);
@@ -332,6 +515,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\16 Tesselation\tesselation.rfa")]
         public void Tesselation_1()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -340,6 +524,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(17, model.CurrentWorkspace.Nodes.Count);
@@ -354,6 +547,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\16 Tesselation\tesselation.rfa")]
         public void Tesselation_2()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -362,6 +556,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(12, model.CurrentWorkspace.Nodes.Count);
@@ -372,6 +575,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\16 Tesselation\tesselation.rfa")]
         public void Tesselation_3()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -381,6 +585,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(8, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(10, model.CurrentWorkspace.Connectors.Count);
@@ -389,7 +602,8 @@ namespace Dynamo.Tests
 
         }
 
-        [Ignore]
+        [Test]
+        [TestModel(@"..\..\..\doc\distrib\Samples\16 Tesselation\tesselation.rfa")]
         public void Tesselation_4()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -399,6 +613,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(11, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(12, model.CurrentWorkspace.Connectors.Count);
@@ -408,6 +631,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Transforms_TranslateAndRotatesequence()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -417,15 +641,25 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
-            Assert.AreEqual(13, model.CurrentWorkspace.Nodes.Count);
-            Assert.AreEqual(14, model.CurrentWorkspace.Connectors.Count);
+            Assert.AreEqual(17, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(18, model.CurrentWorkspace.Connectors.Count);
 
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
 
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Transforms_TranslateAndRotate()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -435,15 +669,25 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
-            Assert.AreEqual(10, model.CurrentWorkspace.Nodes.Count);
-            Assert.AreEqual(10, model.CurrentWorkspace.Connectors.Count);
+            Assert.AreEqual(14, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(14, model.CurrentWorkspace.Connectors.Count);
 
             Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
 
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Formulas_FormulaCurve()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -453,6 +697,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(15, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(17, model.CurrentWorkspace.Connectors.Count);
@@ -461,7 +714,8 @@ namespace Dynamo.Tests
 
         }
 
-        [Ignore]
+        [Test]
+        [TestModel(@".\empty.rfa")]
         public void Formulas_ScalableCircle()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -471,6 +725,15 @@ namespace Dynamo.Tests
 
             model.Open(testPath);
 
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             // check all the nodes and connectors are loaded
             Assert.AreEqual(11, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(11, model.CurrentWorkspace.Connectors.Count);
@@ -479,65 +742,87 @@ namespace Dynamo.Tests
 
         }
 
-        [Ignore]
+        [Test]
+        [TestModel(@".\empty.rfa")]
         public void Spreadsheets_ExcelToStuff()
         {
-            //var model = dynSettings.Controller.DynamoModel;
+            var model = dynSettings.Controller.DynamoModel;
 
-            //string samplePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\Excel to Stuff.dyn");
-            //string testPath = Path.GetFullPath(samplePath);
-            //model.Open(testPath);
+            string samplePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\Excel to Stuff.dyn");
+            string testPath = Path.GetFullPath(samplePath);
+            model.Open(testPath);
 
-            //// check all the nodes and connectors are loaded
-            //Assert.AreEqual(22, model.CurrentWorkspace.Nodes.Count);
-            //Assert.AreEqual(18, model.CurrentWorkspace.Connectors.Count);
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
 
-            //var workspace = model.CurrentWorkspace;
-            //var filePickerNode = workspace.FirstNodeFromWorkspace<StringFilename>();
+            double noOfNdoes = nodes.Count();
 
-            //// remap the file name as Excel requires an absolute path
-            //var excelFilePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\");
-            ////excelFilePath = Path.Combine(excelFilePath, excelFileName);
-            //excelFilePath = Path.Combine(excelFilePath, "helix.xlsx");
-            //filePickerNode.Value = excelFilePath;
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
-            //Assert.IsFalse(string.IsNullOrEmpty(excelFilePath));
-            //Assert.IsTrue(File.Exists(excelFilePath));
+            // check all the nodes and connectors are loaded
+            Assert.AreEqual(22, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(18, model.CurrentWorkspace.Connectors.Count);
 
-            //Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+            var workspace = model.CurrentWorkspace;
+            var filePickerNode = workspace.FirstNodeFromWorkspace<Filename>();
 
-            Assert.Inconclusive("Porting : StringFileName");
+            // remap the file name as Excel requires an absolute path
+            var excelFilePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\");
+            //excelFilePath = Path.Combine(excelFilePath, excelFileName);
+            excelFilePath = Path.Combine(excelFilePath, "helix.xlsx");
+            filePickerNode.Value = excelFilePath;
+
+            Assert.IsFalse(string.IsNullOrEmpty(excelFilePath));
+            Assert.IsTrue(File.Exists(excelFilePath));
+
+            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+
+            //Assert.Inconclusive("Porting : StringFileName");
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Spreadsheets_CSVToStuff()
         {
-            //var model = dynSettings.Controller.DynamoModel;
+            var model = dynSettings.Controller.DynamoModel;
 
-            //string samplePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\CSV to Stuff.dyn");
-            //string testPath = Path.GetFullPath(samplePath);
-            //model.Open(testPath);
+            string samplePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\CSV to Stuff.dyn");
+            string testPath = Path.GetFullPath(samplePath);
+            model.Open(testPath);
 
-            //// check all the nodes and connectors are loaded
-            //Assert.AreEqual(11, model.CurrentWorkspace.Nodes.Count);
-            //Assert.AreEqual(8, model.CurrentWorkspace.Connectors.Count);
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
 
-            //var workspace = model.CurrentWorkspace;
-            //var filePickerNode = workspace.FirstNodeFromWorkspace<StringFilename>();
+            double noOfNdoes = nodes.Count();
 
-            //// remap the file name as CSV requires an absolute path
-            //var excelFilePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\");
-            //excelFilePath = Path.Combine(excelFilePath, "helix_smaller.csv");
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
-            //filePickerNode.Value = excelFilePath;
+            // check all the nodes and connectors are loaded
+            Assert.AreEqual(11, model.CurrentWorkspace.Nodes.Count);
+            Assert.AreEqual(7, model.CurrentWorkspace.Connectors.Count);
 
-            //Assert.IsFalse(string.IsNullOrEmpty(excelFilePath));
-            //Assert.IsTrue(File.Exists(excelFilePath));
+            var workspace = model.CurrentWorkspace;
+            var filePickerNode = workspace.FirstNodeFromWorkspace<Filename>();
 
-            ////dynSettings.Controller.RunExpression(true);
-            Assert.Inconclusive("Porting : StringFileName");
+            // remap the file name as CSV requires an absolute path
+            var excelFilePath = Path.Combine(_samplesPath, @".\15 Spreadsheets\");
+            excelFilePath = Path.Combine(excelFilePath, "helix_smaller.csv");
+
+            filePickerNode.Value = excelFilePath;
+
+            Assert.IsFalse(string.IsNullOrEmpty(excelFilePath));
+            Assert.IsTrue(File.Exists(excelFilePath));
+
+            //dynSettings.Controller.RunExpression(true);
+            //Assert.Inconclusive("Porting : StringFileName");
         }
+
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Rendering_hill_climbing_simple()
         {
             // referencing the samples directly from the samples folder
@@ -545,36 +830,46 @@ namespace Dynamo.Tests
 
             var model = dynSettings.Controller.DynamoModel;
             // look at the sample folder and one directory up to get the distrib folder and combine with defs folder
-            string customNodePath = Path.Combine(Path.Combine(_samplesPath,@"..\\"), @".\dynamo_packages\Dynamo Sample Custom Nodes\dyf\");
+            string customNodePath = Path.Combine(Path.Combine(_samplesPath, @"..\\"), @".\dynamo_packages\Dynamo Sample Custom Nodes\dyf\");
             // get the full path to the distrib folder and def folder
             string fullCustomNodePath = Path.GetFullPath(customNodePath);
 
             string samplePath = Path.Combine(_samplesPath, @".\25 Rendering\hill_climbing_simple.dyn");
             string testPath = Path.GetFullPath(samplePath);
-           
+
             // make sure that the two custom nodes we need exist
             string customDefPath1 = Path.Combine(fullCustomNodePath, "ProduceChild.dyf");
             string customDefPath2 = Path.Combine(fullCustomNodePath, "DecideNewParent.dyf");
 
             Assert.IsTrue(File.Exists(customDefPath1), "Cannot find specified custom definition to load for testing at." + customDefPath1);
-            Assert.IsTrue(File.Exists(customDefPath2), "Cannot find specified custom definition to load for testing."+ customDefPath2);
-            
- Assert.DoesNotThrow(() =>
-              dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath2));
- Assert.DoesNotThrow(() =>
-               dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath1));
+            Assert.IsTrue(File.Exists(customDefPath2), "Cannot find specified custom definition to load for testing." + customDefPath2);
+
+            Assert.DoesNotThrow(() =>
+                         dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath2));
+            Assert.DoesNotThrow(() =>
+                          dynSettings.Controller.CustomNodeManager.AddFileToPath(customDefPath1));
 
 
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
+
             Assert.AreEqual(2, dynSettings.Controller.CustomNodeManager.LoadedCustomNodes.Count);
             // check all the nodes and connectors are loaded
             Assert.AreEqual(7, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(12, model.CurrentWorkspace.Connectors.Count);
-           
-             Assert.DoesNotThrow(() =>dynSettings.Controller.RunExpression(true));
 
-           
+            Assert.DoesNotThrow(() => dynSettings.Controller.RunExpression(true));
+
+
             var workspace = model.CurrentWorkspace;
 
             Assert.Fail("Mike to update for CB2B1");
@@ -598,9 +893,11 @@ namespace Dynamo.Tests
 
 
         }
+
         #region 14 Curves
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void AllCurveTestModelCurve()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -609,6 +906,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(47, model.CurrentWorkspace.Nodes.Count);
@@ -619,6 +925,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void AllCurveTest()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -627,6 +934,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(33, model.CurrentWorkspace.Nodes.Count);
@@ -637,6 +953,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void ArcAndLineFromRefPoints()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -645,6 +962,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(15, model.CurrentWorkspace.Nodes.Count);
@@ -655,6 +981,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void ArcAndLine()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -663,6 +990,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(17, model.CurrentWorkspace.Nodes.Count);
@@ -673,6 +1009,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void ArcFromRefPoints()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -681,6 +1018,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(13, model.CurrentWorkspace.Nodes.Count);
@@ -691,6 +1037,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void Arc()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -699,6 +1046,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(15, model.CurrentWorkspace.Nodes.Count);
@@ -709,6 +1065,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void Circle()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -717,6 +1074,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(13, model.CurrentWorkspace.Nodes.Count);
@@ -727,6 +1093,7 @@ namespace Dynamo.Tests
         }
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void Ellipse()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -735,6 +1102,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(14, model.CurrentWorkspace.Nodes.Count);
@@ -749,6 +1125,7 @@ namespace Dynamo.Tests
         #region 06 Python Node
 
         [Test]
+        [TestModel(@".\Samples\AllCurves.rfa")]
         public void ConnectTwoPointArraysWithoutPython()
         {
             var model = dynSettings.Controller.DynamoModel;
@@ -757,6 +1134,15 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
+
+            var nodes = Controller.DynamoModel.Nodes.OfType<DummyNode>();
+
+            double noOfNdoes = nodes.Count();
+
+            if (noOfNdoes >= 1)
+            {
+                Assert.Fail("Number of Dummy Node found in Sample: " + noOfNdoes);
+            }
 
             // check all the nodes and connectors are loaded
             Assert.AreEqual(12, model.CurrentWorkspace.Nodes.Count);
@@ -775,7 +1161,6 @@ namespace Dynamo.Tests
             string testPath = Path.GetFullPath(samplePath);
 
             model.Open(testPath);
-
             // check all the nodes and connectors are loaded
             Assert.AreEqual(10, model.CurrentWorkspace.Nodes.Count);
             Assert.AreEqual(11, model.CurrentWorkspace.Connectors.Count);

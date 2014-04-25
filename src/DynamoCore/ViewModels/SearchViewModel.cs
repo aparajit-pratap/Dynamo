@@ -875,10 +875,10 @@ namespace Dynamo.ViewModels
 
                     if (isOverloaded)
                     {
-                        displayString = string.Join(", ", function.Parameters.Select(p => p.ToString()));
-                        if (string.IsNullOrEmpty(displayString))
-                            displayString = "void";
-                        category = category + "." + function.UserFriendlyName; 
+                        var args = string.Join(", ", function.Parameters.Select(p => p.ToString()));
+
+                        if (!string.IsNullOrEmpty(args))
+                            displayString = displayString + "(" + args + ")";
                     }
 
                     var searchElement = new DSFunctionNodeSearchElement(displayString, function);
@@ -1103,26 +1103,6 @@ namespace Dynamo.ViewModels
         }
 
         internal bool CanFocusSearch(object parameter)
-        {
-            return true;
-        }
-
-        public void ShowLibItemInfoBubble(object parameter)
-        {
-            dynSettings.Controller.DynamoViewModel.ShowInfoBubble(parameter);
-        }
-
-        internal bool CanShowLibItemInfoBubble(object parameter)
-        {
-            return true;
-        }
-
-        public void HideLibItemInfoBubble(object parameter)
-        {
-            dynSettings.Controller.DynamoViewModel.HideInfoBubble(parameter);
-        }
-
-        internal bool CanHideLibItemInfoBubble(object parameter)
         {
             return true;
         }

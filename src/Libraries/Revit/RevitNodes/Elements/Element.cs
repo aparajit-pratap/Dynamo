@@ -11,6 +11,8 @@ using RevitServices.Persistence;
 using RevitServices.Threading;
 using RevitServices.Transactions;
 using Color = DSCore.Color;
+using Revit.GeometryObjects;
+using ArgumentException = Autodesk.Revit.Exceptions.ArgumentException;
 
 namespace Revit.Elements
 {
@@ -18,7 +20,7 @@ namespace Revit.Elements
     /// Superclass of all Revit element wrappers
     /// </summary>
     //[SupressImportIntoVM]
-    public abstract class Element : IDisposable, IGraphicItem
+    public abstract class Element : IDisposable, IGraphicItem, IFormattable
     {
         /// <summary>
         /// A reference to the current Document.
@@ -66,17 +68,11 @@ namespace Revit.Elements
         {
             get
             {
-                return IdlePromise.ExecuteOnIdleSync(() =>
-                {
-                    TransactionManager.Instance.EnsureInTransaction(Document);
-
-                    DocumentManager.Instance.CurrentDBDocument.Regenerate();
-                    var bb = this.InternalElement.get_BoundingBox(null);
-
-                    TransactionManager.Instance.TransactionTaskDone();
-
-                    return bb.ToProtoType();
-                });
+                TransactionManager.Instance.EnsureInTransaction(Document);
+                DocumentManager.Regenerate();
+                var bb = this.InternalElement.get_BoundingBox(null);
+                TransactionManager.Instance.TransactionTaskDone();
+                return bb.ToProtoType();
             }
         }
 
@@ -147,11 +143,15 @@ namespace Revit.Elements
             if (DisposeLogic.IsShuttingDown)
                 return;
 
+            bool didRevitDelete = ElementIDLifecycleManager<int>.GetInstance().IsRevitDeleted(this.Id);
+
+
+
             var elementManager = ElementIDLifecycleManager<int>.GetInstance();
             int remainingBindings = elementManager.UnRegisterAssociation(this.Id, this);
 
             // Do not delete Revit owned elements
-            if (!IsRevitOwned && remainingBindings == 0)
+            if (!IsRevitOwned && remainingBindings == 0 && !didRevitDelete)
             {
                 DocumentManager.Instance.DeleteElement(this.InternalElementId);
             }
@@ -175,8 +175,15 @@ namespace Revit.Elements
             return this.GetType().Name;
         }
 
+        public virtual string ToString(string format, IFormatProvider formatProvider)
+        {
+            // As a default, return the standard string representation.
+            // Override ToString with format information in children.
+            return ToString();
+        }
+
         [IsVisibleInDynamoLibrary(false)]
-        public void Tessellate(IRenderPackage package, double tol)
+        public void Tessellate(IRenderPackage package, double tol, int gridLines)
         {
             // Do nothing. We implement this method only to prevent the GraphicDataProvider from
             // attempting to interrogate the public properties, some of which may require regeneration
@@ -198,14 +205,7 @@ namespace Revit.Elements
             TransactionManager.Instance.EnsureInTransaction(DocumentManager.Instance.CurrentDBDocument);
 
             var dynval = value as dynamic;
-            try
-            {
-                SetParameterValue(param, dynval);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
+            SetParameterValue(param, dynval);
             
             TransactionManager.Instance.TransactionTaskDone();
         }
@@ -285,22 +285,108 @@ namespace Revit.Elements
 
         private void SetParameterValue(Autodesk.Revit.DB.Parameter param, double value)
         {
+            if (param.StorageType != StorageType.Integer && param.StorageType != StorageType.Double)
+                throw new Exception("The parameter's storage type is not a number.");
+
             param.Set(value);
         }
 
         private void SetParameterValue(Autodesk.Revit.DB.Parameter param, int value)
         {
+            if (param.StorageType != StorageType.Integer && param.StorageType != StorageType.Double)
+                throw new Exception("The parameter's storage type is not a number.");
+
             param.Set(value);
         }
 
         private void SetParameterValue(Autodesk.Revit.DB.Parameter param, string value)
         {
+            if (param.StorageType != StorageType.String)
+                throw new Exception("The parameter's storage type is not a string.");
+
             param.Set(value);
+        }
+
+        private void SetParameterValue(Autodesk.Revit.DB.Parameter param, bool value)
+        {
+            if (param.StorageType != StorageType.Integer)
+                throw new Exception("The parameter's storage type is not an integer.");
+
+            param.Set(value == false ? 0 : 1);
         }
 
         #endregion
 
+
+        /// <summary>
+        /// Get all of the Geometry associated with this object
+        /// </summary>
+        public object[] Geometry()
+        {
+
+            Autodesk.Revit.DB.Element thisElement = InternalElement;
+
+            var instanceGeometryObjects = new List<Autodesk.Revit.DB.GeometryObject>();
+
+            var geoOptionsOne = new Autodesk.Revit.DB.Options();
+            geoOptionsOne.ComputeReferences = true;
+
+            var geomObj = thisElement.get_Geometry(geoOptionsOne);
+            var geomElement = geomObj as GeometryElement;
+
+            if ((thisElement is GenericForm) && (geomElement.Count() < 1))
+            {
+                GenericForm gF = (GenericForm)thisElement;
+                if (!gF.Combinations.IsEmpty)
+                {
+                    Autodesk.Revit.DB.Options geoOptionsTwo = new Autodesk.Revit.DB.Options();
+                    geoOptionsTwo.IncludeNonVisibleObjects = true;
+                    geoOptionsTwo.ComputeReferences = true;
+                    geomObj = thisElement.get_Geometry(geoOptionsTwo);
+                    geomElement = geomObj as GeometryElement;
+                }
+            }
+
+            foreach (Autodesk.Revit.DB.GeometryObject geob in geomElement)
+            {
+                GeometryInstance ginsta = geob as GeometryInstance;
+                if (ginsta != null)
+                {
+                    Autodesk.Revit.DB.GeometryElement instanceGeom = ginsta.GetInstanceGeometry();
+                    instanceGeometryObjects.Add(instanceGeom);
+                    foreach (Autodesk.Revit.DB.GeometryObject geobInst in instanceGeom)
+                    {
+                        instanceGeometryObjects.Add(geobInst);
+                    }
+                }
+                else
+                {
+                    instanceGeometryObjects.Add(geob);
+                }
+            }
+
+            return instanceGeometryObjects.Select(x =>
+            {
+                object w = x.Convert();
+                if (w != null) return w;
+                return x.Wrap();
+            }).ToArray();
+        }
+
         #region Internal Geometry Helpers
+
+        /// <summary>
+        /// Is this element still alive in Revit, and good to be drawn, queried etc.
+        /// </summary>
+        protected bool IsAlive
+        {
+            get
+            {
+                //Ensure that the object is still alive
+                return !ElementIDLifecycleManager<int>.GetInstance().IsRevitDeleted(this.InternalElementId.IntegerValue);
+            }
+        }
+
 
         protected IEnumerable<Autodesk.Revit.DB.Curve> GetCurves(Autodesk.Revit.DB.Options options)
         {
@@ -327,9 +413,9 @@ namespace Revit.Elements
         /// </summary>
         /// <param name="geomElem"></param>
         /// <param name="curves"></param>
-        private void GetCurves(IEnumerable<GeometryObject> geomElem, ref CurveArray curves)
+        private void GetCurves(IEnumerable<Autodesk.Revit.DB.GeometryObject> geomElem, ref CurveArray curves)
         {
-            foreach (GeometryObject geomObj in geomElem)
+            foreach (Autodesk.Revit.DB.GeometryObject geomObj in geomElem)
             {
                 var curve = geomObj as Autodesk.Revit.DB.Curve;
                 if (null != curve)
@@ -354,10 +440,10 @@ namespace Revit.Elements
         /// </summary>
         /// <param name="geomElem"></param>
         /// <param name="faces"></param>
-        private void GetFaces(IEnumerable<GeometryObject> geomElement, ref FaceArray faces)
+        private void GetFaces(IEnumerable<Autodesk.Revit.DB.GeometryObject> geomElement, ref FaceArray faces)
         {
 
-                foreach (GeometryObject geob in geomElement)
+                foreach (Autodesk.Revit.DB.GeometryObject geob in geomElement)
                 {
                     if (geob is GeometryInstance)
                     {

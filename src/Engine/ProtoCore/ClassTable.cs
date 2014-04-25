@@ -235,7 +235,7 @@ namespace ProtoCore.DSASM
                 }
             }
 
-            return ProtoCore.DSASM.Constants.kInvalidIndex;
+            return Constants.kInvalidIndex;
         }
 
 
@@ -244,18 +244,18 @@ namespace ProtoCore.DSASM
             IEnumerable<SymbolNode> allSymbols = symbols.GetNodeForName(name);
             if (allSymbols == null)
             {
-                return ProtoCore.DSASM.Constants.kInvalidIndex;
+                return Constants.kInvalidIndex;
             }
 
             // Try for member variables. 
             foreach (var memvar in allSymbols)
             {
-                if (memvar.functionIndex == ProtoCore.DSASM.Constants.kGlobalScope)
+                if (memvar.functionIndex == Constants.kGlobalScope)
                 {
                     return memvar.symbolTableIndex;
                 }
             }
-            return ProtoCore.DSASM.Constants.kInvalidIndex;
+            return Constants.kInvalidIndex;
         }
 
         // 1. In some class's scope, classScope != kInvalidIndex;
@@ -274,7 +274,7 @@ namespace ProtoCore.DSASM
 
             ProtoCore.DSASM.ProcedureNode procNode = null;
 
-            int functionIndex = vtable.IndexOf(procName, argTypeList, typeSystem.classTable, isStaticOrConstructor);
+            int functionIndex = vtable.IndexOf(procName, argTypeList, isStaticOrConstructor);
             if (functionIndex != ProtoCore.DSASM.Constants.kInvalidIndex)
             {
                 int myClassIndex = typeSystem.classTable.IndexOf(name);
@@ -353,9 +353,9 @@ namespace ProtoCore.DSASM
             return procNode;
         }
 
-        public ProtoCore.DSASM.ProcedureNode GetFirstStaticMemberFunction(string procName)
+        public ProcedureNode GetFirstStaticMemberFunction(string procName)
         {
-            ProtoCore.DSASM.ProcedureNode procNode = null;
+            ProcedureNode procNode = null;
             if (null != vtable)
             {
                 procNode = vtable.GetFirstStatic(procName);

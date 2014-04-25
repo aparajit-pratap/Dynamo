@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Autodesk.DesignScript.Geometry;
+﻿using System.Linq;
+using Dynamo.Tests;
 using Revit.AnalysisDisplay;
 using Revit.Application;
 using Revit.Elements;
@@ -11,12 +8,12 @@ using NUnit.Framework;
 namespace DSRevitNodesTests.AnalysisDisplay
 {
     [TestFixture]
-    public class FaceAnalysisDisplayTests
+    public class FaceAnalysisDisplayTests : RevitNodeTestBase
     {
         [Test]
+        [TestModel(@".\ColumnFamilyInstance.rvt")]
         public void ByViewFacePointsAndValues_ValidArgs()
         {
-
             var fams = ElementSelector.ByType<Autodesk.Revit.DB.FamilyInstance>(true);
             var famInst = fams.First() as Revit.Elements.FamilyInstance;
 
@@ -44,12 +41,13 @@ namespace DSRevitNodesTests.AnalysisDisplay
         }
 
         [Test]
+        [TestModel(@".\ColumnFamilyInstance.rvt")]
         public void ByViewFacePointsAndValues_BadArgs()
         {
-            // get the face from the document
-            var ele = ElementSelector.ByType<Autodesk.Revit.DB.Form>(true).FirstOrDefault();
-            var form = ele as Form;
-            var faceRef = form.FaceReferences.First();
+            var fams = ElementSelector.ByType<Autodesk.Revit.DB.FamilyInstance>(true);
+            var famInst = fams.First() as Revit.Elements.FamilyInstance;
+
+            var faceRef = famInst.FaceReferences.First();
 
             var samplePoints = new[]
             {

@@ -4,10 +4,16 @@ using System.Linq;
 using System.Text;
 using Autodesk.DesignScript.Interfaces;
 using Autodesk.Revit.DB;
+using Revit.GeometryConversion;
 
 namespace Revit.GeometryObjects
 {
-
+    /// <summary>
+    /// A Revit Edge
+    /// 
+    /// Note: This class is required as there is no known way to robustly convert
+    /// a Revit Face into its ProtoGeometry equivalent.
+    /// </summary>
     public class Edge : GeometryObject
     {
         internal Autodesk.Revit.DB.Edge InternalEdge
@@ -30,9 +36,22 @@ namespace Revit.GeometryObjects
             return new Edge(f);
         }
 
+        public override object[] Explode()
+        {
+            return new [] { this.Curve };
+        }
+
+        /// <summary>
+        /// Get the underlying curve representation of the Edge
+        /// </summary>
+        public Autodesk.DesignScript.Geometry.Curve Curve
+        {
+            get { return InternalEdge.AsCurve().ToProtoType(); }
+        }
+
         #region Tesselation
 
-        public override void Tessellate(IRenderPackage package, double tol)
+        public override void Tessellate(IRenderPackage package, double tol, int gridLines)
         {
             InternalEdge.AsCurve().Tessellate()
                 .ToList()

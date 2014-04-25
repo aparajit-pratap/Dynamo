@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Xml;
 using Autodesk.Revit.DB;
 using DSCoreNodesUI;
 using Dynamo.Models;
@@ -7,6 +10,7 @@ using Dynamo.Nodes;
 using Dynamo.Utilities;
 using ProtoCore.AST.AssociativeAST;
 using RevitServices.Persistence;
+using Category = Revit.Elements.Category;
 
 namespace DSRevitNodesUI
 {
@@ -67,6 +71,186 @@ namespace DSRevitNodesUI
             return new[] {AstFactory.BuildAssignment(GetAstIdentifierForOutputIndex(0), functionCall) };
         }
 
+    }
+
+    [NodeName("Get Family Parameter")]
+    [NodeCategory(BuiltinNodeCategories.REVIT_SELECTION)]
+    [NodeDescription("Given a Family Instance or Symbol, allows the user to select a parameter as a string.")]
+    [IsDesignScriptCompatible]
+    public class FamilyInstanceParameters : DSDropDownBase 
+    {
+        private const string noFamilyParameters = "No family parameters available.";
+        private Element element;
+        private ElementId storedId = null;
+
+        public FamilyInstanceParameters() : base("Parameter") 
+        {
+            this.AddPort(PortType.INPUT, new PortData("f", "Family Symbol or Instance"), 0);
+            this.PropertyChanged += OnPropertyChanged;
+        }
+
+        void OnPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != "IsUpdated")
+                return;
+
+            if (InPorts.Any(x => x.Connectors.Count == 0))
+                return;
+
+            element = GetInputElement();
+        }
+
+        private static string getStorageTypeString(StorageType st)
+        {
+            switch (st)
+            {
+                case StorageType.Integer:
+                    return "int";
+                case StorageType.Double:
+                    return "double";
+                case StorageType.String:
+                    return "string";
+                case StorageType.ElementId:
+                default:
+                    return "id";
+            }
+        }
+
+        protected override void PopulateItems() //(IEnumerable set, bool readOnly)
+        {
+            //only update the collection on evaluate
+            //if the item coming in is different
+            if (element == null || element.Id.Equals(this.storedId))
+                return;
+            else
+            {
+                this.storedId = element.Id;
+                this.Items.Clear();
+            }
+
+            FamilySymbol fs = element as FamilySymbol;
+            FamilyInstance fi = element as FamilyInstance;
+            if(null != fs)
+                AddFamilySymbolParameters(fs);
+            if(null != fi)
+                AddFamilyInstanceParameters(fi);
+
+            Items = Items.OrderBy(x => x.Name).ToObservableCollection<DynamoDropDownItem>();
+        }
+
+        private void AddFamilySymbolParameters(FamilySymbol fs)
+        {
+            foreach (Parameter p in fs.Parameters)
+            {
+                if (p.IsReadOnly || p.StorageType == StorageType.None)
+                    continue;
+                Items.Add(
+                    new DynamoDropDownItem(
+                        string.Format("{0}(Type)({1})", p.Definition.Name, getStorageTypeString(p.StorageType)), p.Definition.Name));
+            }
+        }
+
+        private void AddFamilyInstanceParameters(FamilyInstance fi)
+        {
+            foreach (Parameter p in fi.Parameters)
+            {
+                if (p.IsReadOnly || p.StorageType == StorageType.None)
+                    continue;
+                Items.Add(
+                    new DynamoDropDownItem(
+                        string.Format("{0}({1})", p.Definition.Name, getStorageTypeString(p.StorageType)), p.Definition.Name));
+            }
+
+            AddFamilySymbolParameters(fi.Symbol);
+        }
+
+        public override IEnumerable<AssociativeNode> BuildOutputAst(List<AssociativeNode> inputAstNodes)
+        {
+            if (Items.Count == 0 ||
+                Items[0].Name == noFamilyParameters ||
+                SelectedIndex == -1)
+            {
+                return new[] { AstFactory.BuildAssignment(GetAstIdentifierForOutputIndex(0), AstFactory.BuildNullNode()) };
+            }
+
+            return new[] {AstFactory.BuildAssignment(GetAstIdentifierForOutputIndex(0), AstFactory.BuildStringNode((string)Items[SelectedIndex].Item)) };
+        }
+
+        private Element GetInputElement()
+        {
+            var inputNode = InPorts[0].Connectors[0].Start.Owner;
+            var index = InPorts[0].Connectors[0].Start.Index;
+            
+            var identifier = inputNode.GetAstIdentifierForOutputIndex(index).Name;
+            var data = dynSettings.Controller.EngineController.GetMirror(identifier).GetData();
+            object family = null;
+            if (data.IsCollection)
+                family = data.GetElements().FirstOrDefault();
+            else
+                family = data.Data;
+
+            var elem = family as Revit.Elements.Element;
+            if(null == elem)
+                return null;
+
+            return elem.InternalElement;
+        }
+
+        protected override void SaveNode(XmlDocument xmlDoc, XmlElement nodeElement, SaveContext context)
+        {
+            if (this.storedId != null)
+            {
+                XmlElement outEl = xmlDoc.CreateElement("familyid");
+                outEl.SetAttribute("value", this.storedId.IntegerValue.ToString(CultureInfo.InvariantCulture));
+                nodeElement.AppendChild(outEl);
+
+                XmlElement param = xmlDoc.CreateElement("index");
+                param.SetAttribute("value", SelectedIndex.ToString(CultureInfo.InvariantCulture));
+                nodeElement.AppendChild(param);
+            }
+
+        }
+
+        protected override void LoadNode(XmlNode nodeElement)
+        {
+            var doc = DocumentManager.Instance.CurrentDBDocument;
+
+            int index = -1;
+
+            foreach (XmlNode subNode in nodeElement.ChildNodes)
+            {
+                if (subNode.Name.Equals("familyid"))
+                {
+                    int id;
+                    try
+                    {
+                        id = Convert.ToInt32(subNode.Attributes[0].Value);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                    element = doc.GetElement(new ElementId(id));
+
+                }
+                else if (subNode.Name.Equals("index"))
+                {
+                    try
+                    {
+                        index = Convert.ToInt32(subNode.Attributes[0].Value);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            if (element != null)
+            {
+                PopulateItems();
+                SelectedIndex = index;
+            }
+        }
     }
 
     [NodeName("Floor Types")]
@@ -180,22 +364,17 @@ namespace DSRevitNodesUI
     [NodeCategory(BuiltinNodeCategories.REVIT_SELECTION)]
     [NodeDescription("All built-in categories.")]
     [IsDesignScriptCompatible]
-    public class Categories : EnumBase
+    public class Categories : EnumBase<BuiltInCategory>
     {
-        public Categories():base(typeof(BuiltInCategory)){}
-
         protected override void PopulateItems()
         {
-            if (enum_internal == null)
-                return;
-
             Items.Clear();
-            foreach (var constant in System.Enum.GetValues(enum_internal))
+            foreach (var constant in Enum.GetValues(typeof(BuiltInCategory)))
             {
                 Items.Add(new DynamoDropDownItem(constant.ToString().Substring(4), constant));
             }
 
-            Items = Items.OrderBy(x => x.Name).ToObservableCollection<DynamoDropDownItem>();
+            Items = Items.OrderBy(x => x.Name).ToObservableCollection();
         }
 
         public override IEnumerable<AssociativeNode> BuildOutputAst(List<AssociativeNode> inputAstNodes)
@@ -205,9 +384,8 @@ namespace DSRevitNodesUI
                 AstFactory.BuildStringNode(((BuiltInCategory) Items[SelectedIndex].Item).ToString())
             };
 
-            var functionCall = AstFactory.BuildFunctionCall("Revit.Elements.Category",
-                                                            "ByName",
-                                                            args);
+            var func = new Func<string, Category>(Revit.Elements.Category.ByName);
+            var functionCall = AstFactory.BuildFunctionCall(func, args);
 
             return new[] { AstFactory.BuildAssignment(GetAstIdentifierForOutputIndex(0), functionCall) };
         }
@@ -331,4 +509,9 @@ namespace DSRevitNodesUI
             return new[] { AstFactory.BuildAssignment(GetAstIdentifierForOutputIndex(0), node) };
         }
     }
+
+    [NodeName("Spacing Rule Layout")]
+    [NodeCategory(BuiltinNodeCategories.GEOMETRY_CURVE_DIVIDE)]
+    [NodeDescription("A spacing rule layout for calculating divided paths.")]
+    public class SpacingRuleLayouts : EnumAsInt<SpacingRuleLayout> { }
 }

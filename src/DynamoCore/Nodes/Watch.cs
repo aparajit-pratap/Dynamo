@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using Dynamo.Controls;
-using Dynamo.FSchemeInterop;
 using Dynamo.Models;
-using Dynamo.Nodes;
 using Dynamo.Utilities;
 using Dynamo.ViewModels;
-using Microsoft.FSharp.Collections;
-using Value = Dynamo.FScheme.Value;
 using ProtoCore.AST.AssociativeAST;
-using System.ComponentModel;
-using Dynamo.Utilities;
 using ProtoCore.Mirror;
 
 namespace Dynamo.Nodes
@@ -28,7 +21,7 @@ namespace Dynamo.Nodes
     [NodeDescription("Visualize the output of node. ")]
     [NodeSearchTags("print", "output", "display")]
     [IsDesignScriptCompatible]
-    public partial class Watch : NodeWithOneOutput
+    public partial class Watch : NodeModel
     {
         #region private members
 
@@ -86,9 +79,26 @@ namespace Dynamo.Nodes
             {
                 p.PortDisconnected += p_PortDisconnected;
             }
-#if USE_DSENGINE
-            this.PropertyChanged += new PropertyChangedEventHandler(NodeValueUpdated);
-#endif
+
+            dynSettings.Controller.EvaluationCompleted += Controller_EvaluationCompleted;
+        }
+
+        void Controller_EvaluationCompleted(object sender, EventArgs e)
+        {
+            DispatchOnUIThread(
+                delegate
+                {
+                    //unhook the binding
+                    OnRequestBindingUnhook(EventArgs.Empty);
+
+                    Root.Children.Clear();
+
+                    Root.Children.Add(GetWatchNode());
+
+                    //rehook the binding
+                    OnRequestBindingRehook(EventArgs.Empty);
+                }
+            );
         }
 
         /// <summary>
@@ -136,38 +146,7 @@ namespace Dynamo.Nodes
             if (Root != null)
                 Root.Children.Clear();
         }
-
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            //string prefix = "";
-
-            //int count = 0;
-
-            //DispatchOnUIThread(
-            //    delegate
-            //    {
-            //        //unhook the binding
-            //        OnRequestBindingUnhook(EventArgs.Empty);
-
-            //        Root.Children.Clear();
-
-            //        foreach (Value e in args)
-            //        {
-            //            Root.Children.Add(Process(e, count.ToString(CultureInfo.InvariantCulture), Root.ShowRawData));
-            //            count++;
-            //        }
-
-            //        //rehook the binding
-            //        OnRequestBindingRehook(EventArgs.Empty);
-            //    }
-            //    );
-
-            ////return the content that has been gathered
-            //return args[0]; //watch should be a 'pass through' node
-
-            throw new NotImplementedException();
-        }
-
+        
         protected virtual void OnRequestBindingUnhook(EventArgs e)
         {
             if (RequestBindingUnhook != null)
@@ -189,33 +168,6 @@ namespace Dynamo.Nodes
 
             return resultAst;
         }
-
-#if USE_DSENGINE
-
-        #region NodeValueUpdated event handler
-
-        void NodeValueUpdated(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName != "IsUpdated")
-                return;
-
-            DispatchOnUIThread(
-                delegate
-                {
-                    //unhook the binding
-                    OnRequestBindingUnhook(EventArgs.Empty);
-
-                    Root.Children.Clear();
-
-                    Root.Children.Add(GetWatchNode());
-
-                    //rehook the binding
-                    OnRequestBindingRehook(EventArgs.Empty);
-                }
-            );
-        }
-
-        #endregion
 
         #region Watch Node creation for AST node
 
@@ -257,6 +209,5 @@ namespace Dynamo.Nodes
         }
 
         #endregion
-#endif
     }
 }

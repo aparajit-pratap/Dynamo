@@ -53,7 +53,7 @@ namespace Dynamo.Nodes
             // a "Vector" (normal). This new node will convert both the "position" 
             // and "normal" to a "Plane".
             XmlElement plane = MigrationManager.CreateFunctionNode(
-                data.Document, "ProtoGeometry.dll", "Plane.ByOriginNormal",
+                data.Document, oldNode, 0, "ProtoGeometry.dll", "Plane.ByOriginNormal",
                 "Plane.ByOriginNormal@Point,Vector");
 
             migratedData.AppendNode(plane);
@@ -62,7 +62,7 @@ namespace Dynamo.Nodes
             // Create a "SketchPlane.ByPlane" node which converts a "Plane" 
             // into a "SketchPlane".
             XmlElement dsSketchPlane = MigrationManager.CreateFunctionNode(
-                data.Document, "RevitNodes.dll",
+                data.Document, oldNode, 1, "RevitNodes.dll",
                 "SketchPlane.ByPlane", "SketchPlane.ByPlane@Plane");
 
             migratedData.AppendNode(dsSketchPlane);
@@ -71,11 +71,18 @@ namespace Dynamo.Nodes
             // Create a "ModelTextType.ByName" node that converts a "string"
             // into "ModelTextType" node.
             XmlElement dsModelTextType = MigrationManager.CreateFunctionNode(
-                data.Document, "RevitNodes.dll",
+                data.Document, oldNode, 2, "RevitNodes.dll",
                 "ModelTextType.ByName", "ModelTextType.ByName@string");
 
             migratedData.AppendNode(dsModelTextType);
             string dsModelTextTypeId = MigrationManager.GetGuidFromXmlElement(dsModelTextType);
+
+            //append asVector Node
+            XmlElement pointAsVector0 = MigrationManager.CreateFunctionNode(
+                data.Document, oldNode, 3, "ProtoGeometry.dll",
+                "Point.AsVector", "Point.AsVector");
+            migratedData.AppendNode(pointAsVector0);
+            string pointAsVector0Id = MigrationManager.GetGuidFromXmlElement(pointAsVector0);
 
             #endregion
 
@@ -95,9 +102,10 @@ namespace Dynamo.Nodes
 
             // Move connector for "normal" over to "Plane" node.
             oldInPort = new PortId(oldNodeId, 2, PortType.INPUT);
-            newInPort = new PortId(planeId, 1, PortType.INPUT);
+            newInPort = new PortId(pointAsVector0Id, 0, PortType.INPUT);
             connector = data.FindFirstConnector(oldInPort);
             data.ReconnectToPort(connector, newInPort);
+            data.CreateConnector(pointAsVector0, 0, plane, 1);
 
             // Connect from "Plane" to "SketchPlane".
             data.CreateConnector(plane, 0, dsSketchPlane, 0);

@@ -1,14 +1,16 @@
 ﻿using System.Collections.Generic;
 using Autodesk.DesignScript.Geometry;
+using Dynamo.Tests;
 using NUnit.Framework;
 using Revit.Elements;
 
 namespace DSRevitNodesTests.Elements
 {
     [TestFixture]
-    class TopographyTests
+    class TopographyTests : RevitNodeTestBase
     {
         [Test]
+        [TestModel(@".\empty.rvt")]
         public void ByPoints_ValidArgs()
         {   
             var p1 = Point.ByCoordinates(0, 0, 0);
@@ -24,14 +26,15 @@ namespace DSRevitNodesTests.Elements
             var topoSurf = Topography.ByPoints(new List<Point> { p1,p2,p3,p4,p5 });
             Assert.NotNull(topoSurf);
 
-            topoSurf.Points[0].ShouldBeApproximately(p1);
-            topoSurf.Points[1].ShouldBeApproximately(p2);
-            topoSurf.Points[2].ShouldBeApproximately(p3);
-            topoSurf.Points[3].ShouldBeApproximately(p4);
-            topoSurf.Points[4].ShouldBeApproximately(p5);
+            topoSurf.Points[0].AssertShouldBeApproximately(p1);
+            topoSurf.Points[1].AssertShouldBeApproximately(p2);
+            topoSurf.Points[2].AssertShouldBeApproximately(p3);
+            topoSurf.Points[3].AssertShouldBeApproximately(p4);
+            topoSurf.Points[4].AssertShouldBeApproximately(p5);
         }
 
         [Test]
+        [TestModel(@".\empty.rvt")]
         public void ByPoints_InvalidArgs()
         {
             var p1 = Point.ByCoordinates(0, 0, 0);
@@ -44,6 +47,7 @@ namespace DSRevitNodesTests.Elements
         }
 
         [Test]
+        [TestModel(@".\empty.rvt")]
         public void ByPoints_Mutation()
         {
             var p1 = Point.ByCoordinates(0, 0, 0);
@@ -63,7 +67,7 @@ namespace DSRevitNodesTests.Elements
             topoSurf = Topography.ByPoints(new List<Point> {p1, p2, p3, p4, p6});
             Assert.NotNull(topoSurf);
 
-            topoSurf.Points[4].ShouldBeApproximately(p6);
+            topoSurf.Points[4].AssertShouldBeApproximately(p6);
         }
     }
 }

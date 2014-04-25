@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.AccessControl;
-using System.Text;
 using Autodesk.DesignScript.Geometry;
-using Autodesk.Revit.DB;
+using Dynamo.Tests;
 using Revit.GeometryConversion;
 using NUnit.Framework;
 
 namespace DSRevitNodesTests.GeometryConversion
 {
     [TestFixture]
-    public class RevitToProtoCurveTests
+    public class RevitToProtoCurveTests : RevitNodeTestBase
     {
         [SetUp]
         public void Setup()
@@ -26,6 +24,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void NurbSpline_Rational()
         {
             var pts = new List<Autodesk.Revit.DB.XYZ>()
@@ -70,6 +69,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void HermiteSpline_Basic()
         {
             var pts = new List<Autodesk.Revit.DB.XYZ>()
@@ -96,11 +96,11 @@ namespace DSRevitNodesTests.GeometryConversion
 
             var protoSpline = (Autodesk.DesignScript.Geometry.NurbsCurve)protoCurve;
 
-            protoSpline.StartPoint.ShouldBeApproximately(pts[0]);
-            protoSpline.EndPoint.ShouldBeApproximately(pts.Last());
+            protoSpline.StartPoint.AssertShouldBeApproximately(pts[0]);
+            protoSpline.EndPoint.AssertShouldBeApproximately(pts.Last());
 
-            protoSpline.TangentAtParameter(0.0).ShouldBeApproximately(revitSpline.Tangents[0]);
-            protoSpline.TangentAtParameter(1.0).ShouldBeApproximately(revitSpline.Tangents.Last());
+            protoSpline.TangentAtParameter(0.0).AssertShouldBeApproximately(revitSpline.Tangents[0]);
+            protoSpline.TangentAtParameter(1.0).AssertShouldBeApproximately(revitSpline.Tangents.Last());
 
             var tessPts = revitSpline.Tessellate();
 
@@ -115,6 +115,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Line_Basic()
         {
             var s = new Autodesk.Revit.DB.XYZ(5, 2, 3);
@@ -137,6 +138,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Arc_Basic()
         {
             var o = new Autodesk.Revit.DB.XYZ(5,2,3);
@@ -154,10 +156,10 @@ namespace DSRevitNodesTests.GeometryConversion
             Assert.IsAssignableFrom<Autodesk.DesignScript.Geometry.Arc>(pc);
             var pa = (Autodesk.DesignScript.Geometry.Arc)pc;
 
-            (pa.SweepAngle * Math.PI / 180).ShouldBeApproximately(ep - sp);
+            (pa.SweepAngle * Math.PI / 180).AssertShouldBeApproximately(ep - sp);
 
-            pa.StartPoint.ShouldBeApproximately(re.GetEndPoint(0));
-            pa.EndPoint.ShouldBeApproximately(re.GetEndPoint(1));
+            pa.StartPoint.AssertShouldBeApproximately(re.GetEndPoint(0));
+            pa.EndPoint.AssertShouldBeApproximately(re.GetEndPoint(1));
 
             //var tessPts = re.Tessellate();
 
@@ -170,6 +172,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void EllipseArc_Basic()
         {
             var c = new Autodesk.Revit.DB.XYZ(5, 2, 3);
@@ -189,15 +192,15 @@ namespace DSRevitNodesTests.GeometryConversion
             Assert.IsAssignableFrom<Autodesk.DesignScript.Geometry.EllipseArc>(pc);
             var pa = (Autodesk.DesignScript.Geometry.EllipseArc)pc;
 
-            pa.StartAngle.ToRadians().ShouldBeApproximately(sp);
-            (pa.SweepAngle.ToRadians()).ShouldBeApproximately(ep - sp);
+            pa.StartAngle.ToRadians().AssertShouldBeApproximately(sp);
+            (pa.SweepAngle.ToRadians()).AssertShouldBeApproximately(ep - sp);
 
-            pa.StartPoint.ShouldBeApproximately(re.GetEndPoint(0));
-            pa.EndPoint.ShouldBeApproximately(re.GetEndPoint(1));
+            pa.StartPoint.AssertShouldBeApproximately(re.GetEndPoint(0));
+            pa.EndPoint.AssertShouldBeApproximately(re.GetEndPoint(1));
 
-            pa.MajorAxis.Length.ShouldBeApproximately(rx);
-            pa.MinorAxis.Length.ShouldBeApproximately(ry);
-            pa.CenterPoint.ShouldBeApproximately(re.Center);
+            pa.MajorAxis.Length.AssertShouldBeApproximately(rx);
+            pa.MinorAxis.Length.AssertShouldBeApproximately(ry);
+            pa.CenterPoint.AssertShouldBeApproximately(re.Center);
 
             var tessPts = re.Tessellate();
 
@@ -210,6 +213,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void Ellipse_Basic()
         {
             var c = new Autodesk.Revit.DB.XYZ(5, 2, 3);
@@ -229,14 +233,14 @@ namespace DSRevitNodesTests.GeometryConversion
             var pa = (Autodesk.DesignScript.Geometry.Ellipse) pc;
 
             // no elliptical arcs yet
-            //(pa.SweepAngle * Math.PI / 180).ShouldBeApproximately(ep - sp);
+            //(pa.SweepAngle * Math.PI / 180).AssertShouldBeApproximately(ep - sp);
 
-            pa.StartPoint.ShouldBeApproximately(re.GetEndPoint(0));
-            pa.EndPoint.ShouldBeApproximately(re.GetEndPoint(1));
+            pa.StartPoint.AssertShouldBeApproximately(re.GetEndPoint(0));
+            pa.EndPoint.AssertShouldBeApproximately(re.GetEndPoint(1));
 
-            pa.MajorAxis.Length.ShouldBeApproximately(rx);
-            pa.MinorAxis.Length.ShouldBeApproximately(ry);
-            pa.CenterPoint.ShouldBeApproximately(re.Center);
+            pa.MajorAxis.Length.AssertShouldBeApproximately(rx);
+            pa.MinorAxis.Length.AssertShouldBeApproximately(ry);
+            pa.CenterPoint.AssertShouldBeApproximately(re.Center);
 
             //var tessPts = re.Tessellate();
 
@@ -249,6 +253,7 @@ namespace DSRevitNodesTests.GeometryConversion
         }
 
         [Test]
+        [TestModel(@".\empty.rfa")]
         public void CylindricalHelix_Basic()
         {
             Assert.Inconclusive();

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Office.Interop.Excel;
 using Dynamo.Utilities;
+using Autodesk.DesignScript.Runtime;
 
 namespace DSOffice
 {
@@ -24,7 +25,7 @@ namespace DSOffice
             }
         }
 
-        private static bool _showOnStartup = true;
+        private static bool _showOnStartup = false;
         public static bool ShowOnStartup
         {
             get { return _showOnStartup; }
@@ -116,7 +117,16 @@ namespace DSOffice
 
         private static void DynamoModelOnCleaningUp(object sender, EventArgs eventArgs)
         {
-            TryQuitAndCleanup(true);
+            if(eventArgs != null)
+            {
+                Dynamo.Nodes.ExcelCloseEventArgs args = eventArgs as Dynamo.Nodes.ExcelCloseEventArgs;
+                if (args != null)
+                {
+                    TryQuitAndCleanup(args.SaveWorkbooks);
+                }
+            }
+            else
+                TryQuitAndCleanup(true);
         }
     }
 
@@ -128,6 +138,148 @@ namespace DSOffice
 
         }
 
+        /// <summary>
+        /// Reads the given Excel file and returns a workbook
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkBook ReadExcelFile(string path)
+        {
+            return WorkBook.ReadExcelFile(path);
+        }
+
+        /// <summary>
+        /// Returns a list of all the worksheets present in the given Excel workbook
+        /// </summary>
+        /// <param name="workbook"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkSheet[] GetWorksheetsFromExcelWorkbook(WorkBook workbook)
+        {
+            return workbook.WorkSheets;
+        }
+
+        /// <summary>
+        /// Returns the worksheet in the given workbook by its name
+        /// </summary>
+        /// <param name="workbook"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkSheet GetExcelWorksheetByName(WorkBook workbook, string name)
+        {
+            return workbook.GetWorksheetByName(name);
+        }
+
+        /// <summary>
+        /// Reads and retrieves the data from the given Excel worksheet
+        /// </summary>
+        /// <param name="worksheet"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static object[][] GetDataFromExcelWorksheet(WorkSheet worksheet)
+        {
+            return worksheet.Data;
+        }
+
+        /// <summary>
+        /// Writes the given data at the specified row and column no. (base 0) in the given worksheet
+        /// and returns the worksheet
+        /// </summary>
+        /// <param name="worksheet"></param>
+        /// <param name="startRow"></param>
+        /// <param name="startColumn"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkSheet WriteDataToExcelWorksheet(
+            WorkSheet worksheet, int startRow=0, int startColumn=0, object[][] data=null)
+        {
+            if (data == null)
+                return worksheet;
+            else
+                return worksheet.WriteData(startRow, startColumn, data);
+        }
+
+        /// <summary>
+        /// Adds a new Excel worksheet with the given name to the given workbook        
+        /// </summary>
+        /// <param name="workbook"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkSheet AddExcelWorksheetToWorkbook(WorkBook workbook, string name)
+        {
+            return new WorkSheet(workbook, name);
+        }
+
+        /// <summary>
+        /// Creates a new temporary Excel workbook
+        /// </summary>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkBook NewExcelWorkbook()
+        {
+            return new WorkBook("");
+        }
+
+        /// <summary>
+        /// Saves the given Excel workbook to the specified file path and returns it
+        /// </summary>
+        /// <param name="workbook"></param>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static WorkBook SaveAsExcelWorkbook(WorkBook workbook, string filename)
+        {
+            return new WorkBook(workbook, filename);
+        }
+
+        /// <summary>
+        ///     Read data from a Microsoft Excel spreadsheet. Data is read by row and
+        ///     returned in a series of lists by row. Rows and columns are zero-indexed;
+        ///     for example, the value in cell A1 will appear in the data list at [0,0].
+        ///     This node requires Microsoft Excel to be installed.
+        /// </summary>
+        /// <param name="filePath">File path to the Microsoft Excel spreadsheet.</param>
+        /// <param name="sheetName">Name of the worksheet containing the data.</param>
+        /// <returns name="data">Rows of data from the Excel worksheet.</returns>
+        /// <search>office,excel,spreadsheet</search>
+        public static object[][] Read(string filePath, string sheetName)
+        {
+            WorkBook wb = WorkBook.ReadExcelFile(filePath);
+            WorkSheet ws = wb.GetWorksheetByName(sheetName);
+            return ws.Data;
+        }
+
+        /// <summary>
+        ///     Write data to a Microsoft Excel spreadsheet. Data is written by row
+        ///     with sublists to be written in successive rows. Rows and columns are
+        ///     zero-indexed; for example, the value in the data list at [0,0] will
+        ///     be written to cell A1. This node requires Microsoft Excel to be
+        ///     installed.
+        /// </summary>
+        /// <param name="filePath">File path to the Microsoft Excel spreadsheet.</param>
+        /// <param name="sheetName">Name of the workseet to write data to.</param>
+        /// <param name="startRow">Start row for writing data. Enter 0 for A, 1 for B, etc.</param>
+        /// <param name="startCol">
+        ///     Start column for writing data. Enter 0 for col 1, 1 for column 2, ect.
+        /// </param>
+        /// <param name="data">Data to write to the spreadsheet.</param>
+        /// <returns name="data">Data written to the spreadsheet.</returns>
+        /// <search>office,excel,spreadsheet</search>
+        public static object[][] Write(string filePath, string sheetName, int startRow, int startCol, object[][] data)
+        {
+            WorkBook wb = new WorkBook(filePath);
+            WorkSheet ws = new WorkSheet (wb, sheetName);
+            ws = ws.WriteData(startRow, startCol, data);
+            return ws.Data;
+        }
+    }
+
+    public class WorkSheet
+    {
         #region Helper methods
 
         private static object[][] ConvertToJaggedArray(object[,] input)
@@ -158,7 +310,7 @@ namespace DSOffice
                 cols = Math.Max(cols, input[i].GetUpperBound(0) + 1);
 
             object[,] output = new object[rows, cols];
-            
+
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < cols; j++)
@@ -174,60 +326,68 @@ namespace DSOffice
         }
 
         #endregion
+        /// <summary>
+        /// return data from given worksheet (GetDataFromExcelWorksheet node)
+        /// </summary>
+        internal object[][] Data 
+        { 
+            get
+            {
+                var vals = ws.UsedRange.get_Value();
 
-        public static object ReadExcelFile(string path)
+                // if worksheet is empty
+                if (vals == null)
+                    return new object[0][];
+
+                // if worksheet contains a single value
+                if (!vals.GetType().IsArray)
+                    return new object[][] { new object[] { vals } };
+
+                return ConvertToJaggedArray((object[,])vals);
+            }
+        }  
+
+        private WorkBook wb = null;        
+        private Worksheet ws = null;
+
+        /// <summary>
+        /// create new worksheet from given workbook and name (AddExcelWorksheetToWorkbook node)
+        /// </summary>
+        /// <param name="wbook"></param>
+        /// <param name="sheetName"></param>
+        internal WorkSheet (WorkBook wbook, string sheetName)
         {
-            var workbookOpen = ExcelInterop.App.Workbooks.Cast<Workbook>()
-                .FirstOrDefault(e => e.FullName == path);
-
-            if (workbookOpen != null)
-                return workbookOpen;
+            wb = wbook;
+            WorkSheet wSheet = wbook.WorkSheets.FirstOrDefault(n => n.ws.Name == sheetName);
             
-            if (File.Exists(path))
-                return ExcelInterop.App.Workbooks.Open(path, true, false);
+            if (wSheet != null)
+            {
+                // Overwrite sheet
+                DSOffice.ExcelInterop.App.DisplayAlerts = false;
+                wSheet.ws.Delete();
+                DSOffice.ExcelInterop.App.DisplayAlerts = true;
+            }
+            ws = (Worksheet)wb.Add();
+            ws.Name = sheetName;
 
-            throw new ArgumentException("File path not found.", "path");
+            wb.Save();
         }
 
-        public static object[] GetWorksheetsFromExcelWorkbook(object workbook)
+        internal WorkSheet(Worksheet ws, WorkBook wb)
         {
-            Workbook wb = (Workbook)workbook;
-
-            return wb.Worksheets.Cast<Worksheet>().ToArray();
+            this.ws = ws;
+            this.wb = wb;
         }
-
-        public static object GetExcelWorksheetByName(object workbook, string name)
+          
+        /// <summary>
+        /// instance method, write data to existing worksheet, (WriteDataToExcelWorksheet node)
+        /// </summary>
+        /// <param name="startRow"></param>
+        /// <param name="startCol"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        internal WorkSheet WriteData(int startRow, int startColumn, object[][] data)
         {
-            Workbook wb = (Workbook)workbook;
-
-            var ws = wb.Worksheets.Cast<Worksheet>().FirstOrDefault(sheet => sheet.Name == name);
-
-            if (ws == null)
-                throw new ArgumentException("No worksheet matches the given string.", "name");
-
-            return ws;
-        }
-
-        public static object[][] GetDataFromExcelWorksheet(object worksheet)
-        {
-            Worksheet ws = (Worksheet)worksheet;
-            var vals = ws.UsedRange.get_Value();
-
-            // if worksheet is empty
-            if (vals == null)
-                return new object[0][];
-
-            // if worksheet contains a single value
-            if (!vals.GetType().IsArray)
-                return new object[][] { new object[] { vals } };
-
-            return ConvertToJaggedArray((object[,])vals);
-        }
-
-        public static object WriteDataToExcelWorksheet(
-            object worksheet, int startRow, int startColumn, object[][] data)
-        {
-            Worksheet ws = (Worksheet)worksheet;
             startRow = Math.Max(0, startRow);
             startColumn = Math.Max(0, startColumn);
             int numRows, numColumns;
@@ -238,34 +398,138 @@ namespace DSOffice
             var c2 = (Range)ws.Cells[startRow + numRows, startColumn + numColumns];
             var range = ws.get_Range(c1, c2);
             range.Value = rangeData;
-            
-            return ws;
+
+            wb.Save();
+            return this;
         }
 
-        public static object AddExcelWorksheetToWorkbook(object workbook, string name)
+    }
+
+    public class WorkBook
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        internal string Name { get; set; }
+
+        /// <summary>
+        /// (GetWorksheetsFromExcelWorkbook node)
+        /// </summary>
+        internal WorkSheet[] WorkSheets 
         {
-            Workbook wb = (Workbook)workbook;
+            get
+            {
+                return wb.Worksheets.Cast<Worksheet>().Select(n => new WorkSheet(n, this)).ToArray();
+            }
+        }    
+   
+        private Workbook wb = null;
 
-            Worksheet ws = (Worksheet)wb.Worksheets.Add();
-            ws.Name = name;
-
-            return ws;
+        internal object Add()
+        {
+            return wb.Worksheets.Add();
         }
 
-        public static object NewExcelWorkbook()
+        internal void Save()
         {
-            return ExcelInterop.App.Workbooks.Add();
+            if(!String.IsNullOrEmpty(wb.Path))
+                wb.Save();
+        }
+ 
+        /// <summary>
+        /// Creates a new Workbook with filepath and sheet name as input
+        /// </summary>
+        internal WorkBook(string filePath)
+        {            
+            Name = filePath;
+
+            if (!String.IsNullOrEmpty(filePath))
+            {
+                try
+                {
+                    Workbook workbook = ExcelInterop.App.Workbooks.Open(filePath);
+                    wb = workbook;
+                    wb.Save();
+                    
+                }
+                catch (Exception ex)
+                {
+                    // Exception is thrown when there is no existing workbook with the given filepath
+                    wb = ExcelInterop.App.Workbooks.Add();
+                    wb.SaveAs(filePath);
+                }
+            }
+            else
+                wb = ExcelInterop.App.Workbooks.Add();
         }
 
-        public static object SaveAsExcelWorkbook(object workbook, string filename)
+        /// <summary>
+        /// (SaveAsExcelWorkbook node)
+        /// </summary>
+        /// <param name="wbook"></param>
+        /// <param name="filename"></param>
+        internal WorkBook(WorkBook wbook, string filename)
         {
-            Workbook wb = (Workbook)workbook;
+            Name = filename;
+            wb = wbook.wb;
+
             if (wb.FullName == filename)
                 wb.Save();
             else
+            {
+                try
+                {
+                    Workbook workbook = ExcelInterop.App.Workbooks.Open(filename);
+                    workbook.Close(false);
+                }
+                catch (Exception)
+                {   
+                }
+                
                 wb.SaveAs(filename);
+            }
 
-            return wb;
         }
+        
+        private WorkBook(Workbook wb, string filePath)
+        {
+            this.wb = wb;
+            Name = filePath;
+        }
+                
+        /// <summary>
+        /// (ReadExcelFile node)
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        internal static WorkBook ReadExcelFile(string path)
+        {
+            var workbookOpen = ExcelInterop.App.Workbooks.Cast<Workbook>()
+                .FirstOrDefault(e => e.FullName == path);
+
+            if (workbookOpen != null)
+                return new WorkBook(workbookOpen, path);
+
+            if (File.Exists(path))
+                return new WorkBook(ExcelInterop.App.Workbooks.Open(path, true, false), path);
+
+            throw new FileNotFoundException("File path not found.", path);
+        }
+
+        /// <summary>
+        /// instance method, (GetExcelWorksheetByName node)
+        /// </summary>
+        /// <param name="sheetName"></param>
+        /// <returns></returns>
+        internal WorkSheet GetWorksheetByName(string sheetName)
+        {
+            var ws = wb.Worksheets.Cast<Worksheet>().FirstOrDefault(sheet => sheet.Name == sheetName);
+
+            if (ws == null)
+                throw new ArgumentException("No worksheet matches the given string.", "sheetName");
+
+            return new WorkSheet(ws, this);
+        }             
+
     }
 }

@@ -45,9 +45,15 @@ namespace Dynamo.DSEngine
 
         public string Description
         {
-            get { return !String.IsNullOrEmpty(Summary) ? 
-                Summary + " (" + (string.IsNullOrEmpty(Type) ? "var" : Type) + ")"
-                : (string.IsNullOrEmpty(Type) ? "var" : Type); }
+            get { return !String.IsNullOrEmpty(Summary) ?
+                Summary + " (" + (string.IsNullOrEmpty(Type) ? "var" : DisplayTypeName) + ")"
+                : (string.IsNullOrEmpty(Type) ? "var" : DisplayTypeName);
+            }
+        }
+
+        public string DisplayTypeName
+        {
+            get { return Type.Split('.').Last(); }
         }
 
         public TypedParameter(string parameter, string type, object defaultValue = null) 
@@ -255,10 +261,8 @@ namespace Dynamo.DSEngine
             get
             {
                 StringBuilder descBuf = new StringBuilder();
-                descBuf.Append(QualifiedName);
+                descBuf.Append( DisplayName );
 
-                if (!string.IsNullOrEmpty(ReturnType))
-                    descBuf.Append(": " + ReturnType);
 
                 if (Parameters != null && Parameters.Any())
                 {
@@ -272,6 +276,9 @@ namespace Dynamo.DSEngine
                 {
                     descBuf.Append(" ( )");
                 }
+
+                if (!string.IsNullOrEmpty(ReturnType))
+                    descBuf.Append(": " + ReturnType);
 
                 return descBuf.ToString();
             }
@@ -542,7 +549,8 @@ namespace Dynamo.DSEngine
             "DSIronPython.dll",
             "FunctionObject.ds",
             "Optimize.ds",
-            "DynamoUnits.dll"
+            "DynamoUnits.dll",
+            "SimplexNoise.dll"
         };
 
         public class LibraryLoadedEventArgs : EventArgs
@@ -1094,9 +1102,9 @@ namespace Dynamo.DSEngine
                 (arg, argType) => 
                 {
                     object defaultValue = null;
-                    if (arg.isDefault)
+                    if (arg.IsDefault)
                     {
-                        var binaryExpr = arg.defaultExpression as BinaryExpressionNode;
+                        var binaryExpr = arg.DefaultExpression as BinaryExpressionNode;
                         if (binaryExpr != null)
                         {
                             var vnode = binaryExpr.RightNode;

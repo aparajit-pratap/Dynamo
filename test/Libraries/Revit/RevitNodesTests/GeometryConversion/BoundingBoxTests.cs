@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Autodesk.DesignScript.Geometry;
-using Revit;
+﻿using Autodesk.DesignScript.Geometry;
+using Dynamo.Tests;
 using Revit.Elements;
 using Revit.GeometryConversion;
-using Revit.GeometryObjects;
 using NUnit.Framework;
-using RevitServices.Persistence;
-using RevitServices.Transactions;
 
 namespace DSRevitNodesTests.Conversion
 {
@@ -18,6 +11,7 @@ namespace DSRevitNodesTests.Conversion
     {
 
         [Test]
+        [TestModel(@".\MassWithBoxAndCone.rfa")]
         public void CanConvertRevitToProtoType()
         {
             var famSym = FamilySymbol.ByName("Box");
@@ -30,12 +24,13 @@ namespace DSRevitNodesTests.Conversion
             var max = bbox.MaxPoint;
             var min = bbox.MinPoint;
 
-            max.ShouldBeApproximately(Point.ByCoordinates(15, 16, 32));
-            min.ShouldBeApproximately(Point.ByCoordinates(-15, -14, 2));
+            max.AssertShouldBeApproximately(Point.ByCoordinates(15, 16, 32));
+            min.AssertShouldBeApproximately(Point.ByCoordinates(-15, -14, 2));
 
         }
 
         [Test]
+        [TestModel(@".\MassWithBoxAndCone.rfa")]
         public void CanConvertProtoToRevitType()
         {
             var famSym = FamilySymbol.ByName("Box");
@@ -46,8 +41,8 @@ namespace DSRevitNodesTests.Conversion
 
             var bbxyz = bbox.ToRevitType();
 
-            bbxyz.Max.ShouldBeApproximately(Point.ByCoordinates(15, 16, 32));
-            bbxyz.Min.ShouldBeApproximately(Point.ByCoordinates(-15, -14, 2));
+            bbxyz.Max.AssertShouldBeApproximately(Point.ByCoordinates(15, 16, 32));
+            bbxyz.Min.AssertShouldBeApproximately(Point.ByCoordinates(-15, -14, 2));
 
         }
     }

@@ -569,6 +569,11 @@ namespace Dynamo.Nodes
                 "If you don't mind, it would be helpful for you to send us your " +
                 "file. That will make it quicker for us to get these issues fixed.";
 
+            if (exception is ProtoCore.Exceptions.HeapCorruptionException)
+            {
+                description = exception.Message;
+            }
+
             var imageUri = "/DynamoCore;component/UI/Images/task_dialog_crash.png";
             var args = new Dynamo.UI.Prompts.TaskDialogEventArgs(
                 new Uri(imageUri, UriKind.Relative),
@@ -595,12 +600,8 @@ namespace Dynamo.Nodes
         }
     }
 
-    public abstract partial class VariableInput : NodeWithOneOutput
+    public abstract partial class VariableInput : NodeModel
     {
-        protected VariableInput()
-        {
-        }
-
         protected abstract string GetInputRootName();
         protected abstract string GetTooltipRootName();
 
@@ -1013,49 +1014,49 @@ namespace Dynamo.Nodes
             return ranges;
         }
 
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            var list = ((Value.List)args[0]).Item;
-            var len = list.Length;
-            var offset = Convert.ToInt32(((Value.Number)args[1]).Item);
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    var list = ((Value.List)args[0]).Item;
+        //    var len = list.Length;
+        //    var offset = Convert.ToInt32(((Value.Number)args[1]).Item);
 
-            if (offset <= 0)
-                throw new Exception("\"" + InPortData[1].NickName + "\" argument must be greater than zero.");
+        //    if (offset <= 0)
+        //        throw new Exception("\"" + InPortData[1].NickName + "\" argument must be greater than zero.");
 
-            //sublist creation semantics are as follows:
-            //EX. 1..2,5..8
-            //This expression says give me elements 1-2 then jump 3 and give me elements 5-8
-            //For a list 1,2,3,4,5,6,7,8,9,10, this will give us
-            //1,2,5,8,2,3,6,9
+        //    //sublist creation semantics are as follows:
+        //    //EX. 1..2,5..8
+        //    //This expression says give me elements 1-2 then jump 3 and give me elements 5-8
+        //    //For a list 1,2,3,4,5,6,7,8,9,10, this will give us
+        //    //1,2,5,8,2,3,6,9
 
-            var paramLookup = args.Skip(2)
-                                  .Select(
-                                      (x, i) => new { Name = InPortData[i + 2].NickName, Argument = x })
-                                  .ToDictionary(x => x.Name, x => ((Value.Number)x.Argument).Item);
+        //    var paramLookup = args.Skip(2)
+        //                          .Select(
+        //                              (x, i) => new { Name = InPortData[i + 2].NickName, Argument = x })
+        //                          .ToDictionary(x => x.Name, x => ((Value.Number)x.Argument).Item);
 
-            var ranges = _parsed
-                .Select(x => x.GetValue(paramLookup).Select(Convert.ToInt32).ToList())
-                .ToList();
+        //    var ranges = _parsed
+        //        .Select(x => x.GetValue(paramLookup).Select(Convert.ToInt32).ToList())
+        //        .ToList();
 
-            //move through the list, creating sublists
-            var finalList = new List<Value>();
+        //    //move through the list, creating sublists
+        //    var finalList = new List<Value>();
 
-            for (int j = 0; j < len; j += offset)
-            {
-                var currList = new List<Value>();
+        //    for (int j = 0; j < len; j += offset)
+        //    {
+        //        var currList = new List<Value>();
 
-                var query = ranges.Where(r => r[0] + j <= len - 1 && r.Last() + j <= len - 1);
-                foreach (var range in query)
-                {
-                    currList.AddRange(range.Select(i => list.ElementAt(j + i)));
-                }
+        //        var query = ranges.Where(r => r[0] + j <= len - 1 && r.Last() + j <= len - 1);
+        //        foreach (var range in query)
+        //        {
+        //            currList.AddRange(range.Select(i => list.ElementAt(j + i)));
+        //        }
 
-                if (currList.Any())
-                    finalList.Add(FScheme.Value.NewList(currList.ToFSharpList()));
-            }
+        //        if (currList.Any())
+        //            finalList.Add(FScheme.Value.NewList(currList.ToFSharpList()));
+        //    }
 
-            return FScheme.Value.NewList(finalList.ToFSharpList());
-        }
+        //    return FScheme.Value.NewList(finalList.ToFSharpList());
+        //}
 
         protected override string SerializeValue(string val)
         {
@@ -1078,6 +1079,7 @@ namespace Dynamo.Nodes
             var newNode = MigrationManager.CreateFunctionNodeFrom(oldNode);
             MigrationManager.SetFunctionSignature(newNode, "DSCoreNodes.dll",
                 "List.Sublists", "List.Sublists@var[]..[],var[]..[],int");
+            newNode.SetAttribute("lacing","shortest");
             migrationData.AppendNode(newNode);
             string newNodeId = MigrationManager.GetGuidFromXmlElement(newNode);
 
@@ -1090,7 +1092,7 @@ namespace Dynamo.Nodes
             }
 
             XmlElement codeBlockNode = MigrationManager.CreateCodeBlockNodeModelNode(
-                data.Document, rangesString);
+                data.Document, oldNode, 0, rangesString);
             migrationData.AppendNode(codeBlockNode);
             string codeBlockNodeId = MigrationManager.GetGuidFromXmlElement(codeBlockNode);
 
@@ -1123,7 +1125,7 @@ namespace Dynamo.Nodes
     [NodeName("Compose Functions")]
     [NodeCategory(BuiltinNodeCategories.CORE_FUNCTIONS)]
     [NodeDescription("Composes two single parameter functions into one function.")]
-    public class ComposeFunctions : NodeWithOneOutput
+    public class ComposeFunctions : NodeModel
     { 
         public ComposeFunctions()
         {
@@ -1134,47 +1136,24 @@ namespace Dynamo.Nodes
             RegisterAllPorts();
         }
 
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            var f = ((Value.Function)args[0]).Item;
-            var g = ((Value.Function)args[1]).Item;
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    var f = ((Value.Function)args[0]).Item;
+        //    var g = ((Value.Function)args[1]).Item;
 
-            return Value.NewFunction(Utils.ConvertToFSchemeFunc(x => g.Invoke(Utils.MakeFSharpList(f.Invoke(x)))));
-        }
+        //    return Value.NewFunction(Utils.ConvertToFSchemeFunc(x => g.Invoke(Utils.MakeFSharpList(f.Invoke(x)))));
+        //}
 
         [NodeMigration(from: "0.6.3.0", to: "0.7.0.0")]
         public static NodeMigrationData Migrate_0630_to_0700(NodeMigrationData data)
         {
             NodeMigrationData migratedData = new NodeMigrationData(data.Document);
             XmlElement oldNode = data.MigratedNodes.ElementAt(0);
-            string oldNodeId = MigrationManager.GetGuidFromXmlElement(oldNode);
 
-            XmlElement composeNode = MigrationManager.CreateFunctionNodeFrom(oldNode);
-            MigrationManager.SetFunctionSignature(composeNode, "",
-                "Compose", "__Compose@_FunctionObject[]");
+            XmlElement composeNode = MigrationManager.CloneAndChangeName(oldNode, 
+                "DSCoreNodesUI.HigherOrder.ComposeFunctions","Compose Function");
+            composeNode.SetAttribute("inputcount", "2");
             migratedData.AppendNode(composeNode);
-            string composeNodeId = MigrationManager.GetGuidFromXmlElement(composeNode);
-
-            XmlElement createListNode = MigrationManager.CreateNode(data.Document,
-                "DSCoreNodesUI.CreateList", "Create List");
-            migratedData.AppendNode(createListNode);
-            createListNode.SetAttribute("inputcount", "2");
-            string createListNodeId = MigrationManager.GetGuidFromXmlElement(createListNode);
-
-            //create and reconnect the connecters
-            PortId oldInPort0 = new PortId(oldNodeId, 0, PortType.INPUT);
-            XmlElement connector0 = data.FindFirstConnector(oldInPort0);
-
-            PortId oldInPort1 = new PortId(oldNodeId, 1, PortType.INPUT);
-            XmlElement connector1 = data.FindFirstConnector(oldInPort1);
-
-            PortId newInPort0 = new PortId(composeNodeId, 0, PortType.INPUT);
-            PortId newInPort1 = new PortId(createListNodeId, 0, PortType.INPUT);
-            PortId newInPort2 = new PortId(createListNodeId, 1, PortType.INPUT);
-
-            data.ReconnectToPort(connector0, newInPort1);
-            data.ReconnectToPort(connector1, newInPort2);
-            data.CreateConnector(createListNode, 0, composeNode, 0);
 
             return migratedData;
         }
@@ -1206,13 +1185,13 @@ namespace Dynamo.Nodes
             return "Argument #";
         }
 
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            var f = ((Value.Function)args[0]).Item;
-            var fArgs = args.Tail;
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    var f = ((Value.Function)args[0]).Item;
+        //    var fArgs = args.Tail;
 
-            return f.Invoke(fArgs);
-        }
+        //    return f.Invoke(fArgs);
+        //}
 
         protected internal override void RemoveInput()
         {
@@ -1255,36 +1234,19 @@ namespace Dynamo.Nodes
             XmlElement oldNode = data.MigratedNodes.ElementAt(0);
             string oldNodeId = MigrationManager.GetGuidFromXmlElement(oldNode);
 
-            XmlElement applyNode = MigrationManager.CreateFunctionNodeFrom(oldNode);
-            MigrationManager.SetFunctionSignature(applyNode, "",
-                "Apply", "Apply@_FunctionObject,var[]..[]");
-            migratedData.AppendNode(applyNode);
-            string applyNodeId = MigrationManager.GetGuidFromXmlElement(applyNode);
+            XmlElement applyNode = MigrationManager.CloneAndChangeName(oldNode,
+                "DSCoreNodesUI.HigherOrder.ApplyFunction", "Apply Function");
 
-            int numberOfArgs = oldNode.ChildNodes.Count;
+            int numberOfArgs = oldNode.ChildNodes.Count + 1;
             string numberOfArgsString = numberOfArgs.ToString();
-            XmlElement createListNode = MigrationManager.CreateNode(data.Document,
-                "DSCoreNodesUI.CreateList", "Create List");
-            migratedData.AppendNode(createListNode);
-            createListNode.SetAttribute("inputcount", numberOfArgsString);
-            string createListNodeId = MigrationManager.GetGuidFromXmlElement(createListNode);
-
-            //create and reconnect the connecters
-            while (numberOfArgs > 0) 
-            {
-                PortId oldInPort = new PortId(oldNodeId, numberOfArgs, PortType.INPUT);
-                XmlElement connector = data.FindFirstConnector(oldInPort);
-                PortId newInPort = new PortId(createListNodeId, numberOfArgs - 1, PortType.INPUT);
-                data.ReconnectToPort(connector, newInPort);
-                numberOfArgs--;
-            }
-            data.CreateConnector(createListNode, 0, applyNode, 1);
+            applyNode.SetAttribute("inputcount", numberOfArgsString);
+            migratedData.AppendNode(applyNode);
 
             return migratedData;
         }
     }
     
-    public abstract partial class BasicInteractive<T> : NodeWithOneOutput
+    public abstract partial class BasicInteractive<T> : NodeModel
     {
         private T _value;
         public virtual T Value
@@ -1378,10 +1340,10 @@ namespace Dynamo.Nodes
             get { return true; }
         }
 
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            return FScheme.Value.NewNumber(Value);
-        }
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    return FScheme.Value.NewNumber(Value);
+        //}
 
         protected override void SaveNode(XmlDocument xmlDoc, XmlElement nodeElement, SaveContext context)
         {
@@ -1401,10 +1363,10 @@ namespace Dynamo.Nodes
 
     public abstract class Integer : BasicInteractive<int>
     {
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            return FScheme.Value.NewNumber(Value);
-        }
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    return FScheme.Value.NewNumber(Value);
+        //}
 
         protected override void SaveNode(XmlDocument xmlDoc, XmlElement nodeElement, SaveContext context)
         {
@@ -1416,18 +1378,18 @@ namespace Dynamo.Nodes
 
     public abstract class Bool : BasicInteractive<bool>
     {
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            return FScheme.Value.NewNumber(Value ? 1 : 0);
-        }
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    return FScheme.Value.NewNumber(Value ? 1 : 0);
+        //}
     }
 
     public abstract partial class AbstractString : BasicInteractive<string>
     {
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            return FScheme.Value.NewString(Value);
-        }
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    return FScheme.Value.NewString(Value);
+        //}
 
         public override string PrintExpression()
         {
@@ -1555,12 +1517,11 @@ namespace Dynamo.Nodes
     [NodeCategory(BuiltinNodeCategories.CORE_INPUT)]
     [NodeDescription("Creates a number.")]
     [IsDesignScriptCompatible]
-    public partial class DoubleInput : NodeWithOneOutput
+    public partial class DoubleInput : NodeModel
     {
         public DoubleInput()
         {
             OutPortData.Add(new PortData("", "", typeof(Value.Number)));
-
             RegisterAllPorts();
 
             _convertToken = Convert;
@@ -1660,6 +1621,8 @@ namespace Dynamo.Nodes
 
         #endregion
 
+        /* disable the migration path from number node to CBN.
+
         [NodeMigration(from: "0.6.3.0", to: "0.7.0.0")]
         public static NodeMigrationData Migrate_0630_to_0700(NodeMigrationData data)
         {
@@ -1706,6 +1669,8 @@ namespace Dynamo.Nodes
             return migrationData;
         }
 
+        */
+        
         public static List<IDoubleSequence> ParseValue(string text, char[] seps, List<string> identifiers, ConversionDelegate convertToken)
         {
             var idSet = new HashSet<string>(identifiers);
@@ -1764,6 +1729,21 @@ namespace Dynamo.Nodes
 
                                 return new Range(startToken, ParseToken(rangeIdentifiers[2], idSet, identifiers), endToken, convertToken);
                             }
+
+                            double identifierValue0, identifierValue1;
+                            var canBeParsed0 = System.Double.TryParse(rangeIdentifiers[0], out identifierValue0);
+                            var canBeParsed1 = System.Double.TryParse(rangeIdentifiers[1], out identifierValue1);
+
+                            //both of the value can be parsed as double
+                            if (canBeParsed0 && canBeParsed1)
+                            {
+                                if (identifierValue0 < identifierValue1) 
+                                    return new Range(startToken, new DoubleToken(1), endToken, convertToken) as IDoubleSequence;
+                                else
+                                    return new Range(startToken, new DoubleToken(-1), endToken, convertToken) as IDoubleSequence;                              
+                            }
+
+                            //the input cannot be parsed as double, return a default function and let it handle the error
                             return new Range(startToken, new DoubleToken(1), endToken, convertToken) as IDoubleSequence;
                         }
 
@@ -1794,16 +1774,16 @@ namespace Dynamo.Nodes
             throw new Exception("Bad identifier syntax: \"" + id + "\"");
         }
 
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            var paramDict = InPortData.Select(x => x.NickName)
-                .Zip(args, Tuple.Create)
-                .ToDictionary(x => x.Item1, x => ((Value.Number)x.Item2).Item);
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    var paramDict = InPortData.Select(x => x.NickName)
+        //        .Zip(args, Tuple.Create)
+        //        .ToDictionary(x => x.Item1, x => ((Value.Number)x.Item2).Item);
 
-            return _parsed.Count == 1
-                ? _parsed[0].GetFSchemeValue(paramDict)
-                : FScheme.Value.NewList(_parsed.Select(x => x.GetFSchemeValue(paramDict)).ToFSharpList());
-        }
+        //    return _parsed.Count == 1
+        //        ? _parsed[0].GetFSchemeValue(paramDict)
+        //        : FScheme.Value.NewList(_parsed.Select(x => x.GetFSchemeValue(paramDict)).ToFSharpList());
+        //}
 
         internal override IEnumerable<AssociativeNode> BuildAst(List<AssociativeNode> inputAstNodes)
         {
@@ -1874,7 +1854,7 @@ namespace Dynamo.Nodes
                 else
                 {
                     return _result.HasValue
-                        ? new DoubleNode(_result.Value) as AssociativeNode
+                        ? (new DoubleToken(_result.Value)).GetAstNode(idLookup)
                         : new NullNode() as AssociativeNode;
                 }
             }
@@ -1946,8 +1926,9 @@ namespace Dynamo.Nodes
                 var rangeExpr = new RangeExprNode
                 {
                     FromNode = _start.GetAstNode(idLookup),
-                    ToNode = _step.GetAstNode(idLookup),
+                    ToNode = _count.GetAstNode(idLookup),
                     StepNode = _step.GetAstNode(idLookup),
+                    HasRangeAmountOperator = true,
                     stepoperator = ProtoCore.DSASM.RangeStepOperator.stepsize
                 };
                 return rangeExpr;
@@ -2141,6 +2122,8 @@ namespace Dynamo.Nodes
 
             public AssociativeNode GetAstNode(Dictionary<string, AssociativeNode> idLookup)
             {
+                if (Math.Floor(_d) == _d)
+                    return AstFactory.BuildIntNode((int)_d);
                 return AstFactory.BuildDoubleNode(_d);
             }
         }
@@ -2179,7 +2162,7 @@ namespace Dynamo.Nodes
     /// <summary>
     /// Base class for all nodes using a drop down
     /// </summary>
-    public abstract partial class DropDrownBase : NodeWithOneOutput
+    public abstract partial class DropDrownBase : NodeModel
     {
         protected ObservableCollection<DynamoDropDownItem> items = new ObservableCollection<DynamoDropDownItem>();
         public ObservableCollection<DynamoDropDownItem> Items
@@ -2256,9 +2239,9 @@ namespace Dynamo.Nodes
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        public override Value Evaluate(FSharpList<Value> args)
-        {
-            return Value.NewContainer(Items[SelectedIndex].Item);
-        }
+        //public override Value Evaluate(FSharpList<Value> args)
+        //{
+        //    return Value.NewContainer(Items[SelectedIndex].Item);
+        //}
     }
 }

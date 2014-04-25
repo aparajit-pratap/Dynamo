@@ -24,7 +24,7 @@ namespace Dynamo.UI
         //public static readonly double Minimum
 
         // Generic Constants
-        public static readonly double PortHeight = 20;
+        public static readonly double PortHeightInPixels = 26.0;
 
         // Grid Settings
         public static readonly int GridSpacing = 100;
@@ -149,6 +149,7 @@ namespace Dynamo.UI
         public static double NodeTooltipArrowWidth_SideConnecting = 6;
         public static double NodeTooltipArrowHeight_SideConnecting = 12;
 
+        public static double ToolTipTargetGapInPixels = 3.0;
         #endregion
 
         #region Library Item Tooltip
@@ -178,7 +179,7 @@ namespace Dynamo.UI
         #region CodeBlockNode
 
         public static readonly int CBNMaxPortNameLength = 24;
-        public static readonly int CBNMaxTextBoxWidth = 500;
+        public static readonly double CBNMaxTextBoxWidth = 500;
         public static readonly double CBNFontSize = 14.67;
 
         #endregion

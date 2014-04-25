@@ -46,6 +46,7 @@ Name: "{app}\nodes"
 Name: "DynamoCore"; Description: "Dynamo Core Functionality"; Types: full compact custom; Flags: fixed
 Name: "DynamoForRevit2013"; Description: "Dynamo For Revit 2013"; Types: full compact custom;
 Name: "DynamoForRevit2014"; Description: "Dynamo For Revit 2014"; Types: full compact custom;
+Name: "DynamoForRevit2015"; Description: "Dynamo For Revit 2015"; Types: full compact custom;
 Name: "DynamoForVasariBeta3"; Description: "Dynamo For Vasari Beta 3"; Types: full compact custom; 
 Name: "DynamoTrainingFiles"; Description: "Dynamo Training Files"; Types: full
 
@@ -64,6 +65,9 @@ Source: Extra\DynamoAddinsBackup.bat; DestDir: {app}; Flags: ignoreversion overw
 Source: temp\bin\LibG\*; DestDir: {app}\dll; Flags: ignoreversion overwritereadonly; Components: DynamoCore
 Source: Extra\InstallASMForDynamo.exe; DestDir:{app}; Flags: ignoreversion overwritereadonly; Components: DynamoCore
 
+;UI
+Source: temp\bin\UI\*; DestDir: {app}\UI; Flags: ignoreversion overwritereadonly recursesubdirs; Components: DynamoCore
+
 ;Samples
 Source: temp\Samples\*.*; DestDir: {app}\samples; Flags: ignoreversion overwritereadonly recursesubdirs; Components: DynamoTrainingFiles
 
@@ -71,6 +75,7 @@ Source: temp\Samples\*.*; DestDir: {app}\samples; Flags: ignoreversion overwrite
 ;Keep the old deletion steps for those who installed 0.7.0 before the rename
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2013\Dynamo07.addin"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2014\Dynamo07.addin"
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2015\Dynamo07.addin"
 Type: files; Name: "{commonappdata}\Autodesk\Vasari\Addins\2014\Dynamo07.addin"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2013\DynamoVersionSelector.addin"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2014\DynamoVersionSelector.addin"
@@ -107,6 +112,11 @@ begin
   Result := sUnInstallString;
 end;
 
+function Revit2015Installed(): Boolean;
+begin
+   result := FileOrDirExists(ExpandConstant('{commonappdata}\Autodesk\Revit\Addins\2015'));
+end;
+
 function Revit2014Installed(): Boolean;
 begin
    result := FileOrDirExists(ExpandConstant('{commonappdata}\Autodesk\Revit\Addins\2014'));
@@ -124,13 +134,13 @@ end;
 
 function InitializeSetup(): Boolean;
 begin
-  if (Revit2014Installed() or Revit2013Installed() or FormItInstalled()) then
+  if (Revit2015Installed() or Revit2014Installed() or Revit2013Installed() or FormItInstalled()) then
     begin
     result := true;
     end
   else
     begin
-    MsgBox('Dynamo requires an installation of Revit 2013, Revit 2014, or FormIt in order to proceed!', mbCriticalError, MB_OK);
+    MsgBox('Dynamo requires an installation of Revit 2013, Revit 2014, Revit 2015, or Vasari Beta 3 in order to proceed!', mbCriticalError, MB_OK);
     result := false;
     end;
 end;
@@ -182,10 +192,15 @@ begin
       WizardForm.ComponentsList.Checked[2] := False;
       WizardForm.ComponentsList.ItemEnabled[2] := False;
     end;
-	if not FileOrDirExists(ExpandConstant('{commonappdata}\Autodesk\Vasari\Addins\2014')) then
+  if not FileOrDirExists(ExpandConstant('{commonappdata}\Autodesk\Revit\Addins\2015')) then
     begin
       WizardForm.ComponentsList.Checked[3] := False;
       WizardForm.ComponentsList.ItemEnabled[3] := False;
+    end;
+	if not FileOrDirExists(ExpandConstant('{commonappdata}\Autodesk\Vasari\Addins\2014')) then
+    begin
+      WizardForm.ComponentsList.Checked[4] := False;
+      WizardForm.ComponentsList.ItemEnabled[4] := False;
     end;
 end;
 
@@ -228,6 +243,11 @@ begin
     end;
 
     if (WizardForm.ComponentsList.Checked[3]) then
+    begin
+      SaveStringToFile(ExpandConstant('{commonappdata}\Autodesk\Revit\Addins\2015\DynamoVersionSelector.addin'), AddInFileContents, False);
+    end;
+
+    if (WizardForm.ComponentsList.Checked[4]) then
     begin
       SaveStringToFile(ExpandConstant('{commonappdata}\Autodesk\Vasari\Addins\2014\DynamoVersionSelector.addin'), AddInFileContents, False);
     end;

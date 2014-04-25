@@ -9,6 +9,7 @@ using ProtoCore.Exceptions;
 using ProtoCore.DSASM;
 using System.Text;
 using ProtoCore.Utils;
+using ProtoCore.BuildData;
 
 namespace ProtoImperative
 {
@@ -479,14 +480,6 @@ namespace ProtoImperative
                 symbolindex = codeBlock.symbolTable.Append(symbolnode);                
             }
 
-            // TODO Jun: Set the symbol table index of the first local variable of 'funcIndex'
-            // This will no longer required once the functiontable is refactored to include a symbol table 
-            // if the current codeblock is a while block, the procedureTable will be null
-            if (null != localProcedure && null == localProcedure.firstLocal && !IsInLanguageBlockDefinedInFunction())
-            {
-                localProcedure.firstLocal = symbolnode.index;
-            }
-
             if (ProtoCore.DSASM.MemoryRegion.kMemHeap == symbolnode.memregion)
             {
                 EmitInstrConsole(ProtoCore.DSASM.kw.alloca, symbolindex.ToString());
@@ -776,11 +769,6 @@ namespace ProtoImperative
             if (null != procNode)
             {
                 inferedType = procNode.returntype;
-                //if call is replication call
-                if (procNode.isThisCallReplication)
-                {
-                    inferedType.rank++;
-                }
 
                 if (ProtoCore.DSASM.Constants.kInvalidIndex != procNode.procId)
                 {
@@ -858,21 +846,32 @@ namespace ProtoImperative
                 }
                 else
                 {
-                    if (procName == ProtoCore.DSASM.Constants.kFunctionPointerCall && depth == 0)
+                    DynamicFunction dynFunc = null;
+                    if (procName == Constants.kFunctionPointerCall && depth == 0)
                     {
-                        ProtoCore.DSASM.DynamicFunctionNode dynamicFunctionNode = new ProtoCore.DSASM.DynamicFunctionNode(procName, arglist, lefttype);
-                        core.DynamicFunctionTable.functionTable.Add(dynamicFunctionNode);
+                        if (!core.DynamicFunctionTable.TryGetFunction(procName, 
+                                                                      arglist.Count, 
+                                                                      lefttype, 
+                                                                      out dynFunc))
+                        {
+                            dynFunc = core.DynamicFunctionTable.AddNewFunction(procName, arglist.Count, lefttype);
+                        }
                         var iNode = nodeBuilder.BuildIdentfier(funcCall.Function.Name);
                         EmitIdentifierNode(iNode, ref inferedType);
                     }
                     else
                     {
-                        ProtoCore.DSASM.DynamicFunctionNode dynamicFunctionNode = new ProtoCore.DSASM.DynamicFunctionNode(funcCall.Function.Name, arglist, lefttype);
-                        core.DynamicFunctionTable.functionTable.Add(dynamicFunctionNode);
+                        if (!core.DynamicFunctionTable.TryGetFunction(procName, 
+                                                                      arglist.Count, 
+                                                                      lefttype, 
+                                                                      out dynFunc))
+                        {
+                            dynFunc = core.DynamicFunctionTable.AddNewFunction(procName, arglist.Count, lefttype);
+                        }
                     }
                     // The function call
                     EmitInstrConsole(ProtoCore.DSASM.kw.callr, funcCall.Function.Name + "[dynamic]");
-                    EmitDynamicCall(core.DynamicFunctionTable.functionTable.Count - 1, globalClassIndex, depth, funcCall.line, funcCall.col, funcCall.endLine, funcCall.endCol);
+                    EmitDynamicCall(dynFunc.Index, globalClassIndex, depth, funcCall.line, funcCall.col, funcCall.endLine, funcCall.endCol);
 
                     // The function return value
                     EmitInstrConsole(ProtoCore.DSASM.kw.push, ProtoCore.DSASM.kw.regRX);
@@ -1345,7 +1344,6 @@ namespace ProtoImperative
                     foreach (VarDeclNode argNode in funcDef.Signature.Arguments)
                     {
                         IdentifierNode paramNode = null;
-                        bool aIsDefault = false;
                         ProtoCore.AST.Node aDefaultExpression = null;
                         if (argNode.NameNode is IdentifierNode)
                         {
@@ -1355,10 +1353,7 @@ namespace ProtoImperative
                         {
                             BinaryExpressionNode bNode = argNode.NameNode as BinaryExpressionNode;
                             paramNode = bNode.LeftNode as IdentifierNode;
-                            aIsDefault = true;
                             aDefaultExpression = bNode;
-                            //buildStatus.LogSemanticError("Defualt parameters are not supported");
-                            //throw new BuildHaltException();
                         }
                         else
                         {
@@ -1373,7 +1368,7 @@ namespace ProtoImperative
                         }
 
                         localProcedure.argTypeList.Add(argType);
-                        ProtoCore.DSASM.ArgumentInfo argInfo = new ProtoCore.DSASM.ArgumentInfo { isDefault = aIsDefault, defaultExpression = aDefaultExpression };
+                        ProtoCore.DSASM.ArgumentInfo argInfo = new ProtoCore.DSASM.ArgumentInfo { DefaultExpression = aDefaultExpression };
                         localProcedure.argInfoList.Add(argInfo);
                     }
                 }
@@ -1406,7 +1401,7 @@ namespace ProtoImperative
                 }
 
                 // Get the exisitng procedure that was added on the previous pass
-                globalProcIndex = codeBlock.procedureTable.IndexOfExact(funcDef.Name, argList);
+                globalProcIndex = codeBlock.procedureTable.IndexOfExact(funcDef.Name, argList, false);
                 localProcedure = codeBlock.procedureTable.procList[globalProcIndex];
 
 
@@ -1429,11 +1424,11 @@ namespace ProtoImperative
                 emitDebugInfo = false;
                 foreach (ProtoCore.DSASM.ArgumentInfo argNode in localProcedure.argInfoList)
                 {
-                    if (!argNode.isDefault)
+                    if (!argNode.IsDefault)
                     {
                         continue;
                     }
-                    BinaryExpressionNode bNode = argNode.defaultExpression as BinaryExpressionNode;
+                    BinaryExpressionNode bNode = argNode.DefaultExpression as BinaryExpressionNode;
 
                     // build a temporay node for statement : temp = defaultarg;
                     var iNodeTemp = nodeBuilder.BuildIdentfier(Constants.kTempDefaultArg);
@@ -2767,60 +2762,74 @@ namespace ProtoImperative
                 (range.ToNode is IntNode || range.ToNode is DoubleNode) &&
                 (range.StepNode == null || (range.StepNode != null && (range.StepNode is IntNode || range.StepNode is DoubleNode))))
             {
-                double current = (range.FromNode is IntNode) ? (range.FromNode as IntNode).Value :(range.FromNode as DoubleNode).Value;
+                double current = (range.FromNode is IntNode) ? (range.FromNode as IntNode).Value : (range.FromNode as DoubleNode).Value;
                 double end = (range.ToNode is IntNode) ? (range.ToNode as IntNode).Value : (range.ToNode as DoubleNode).Value;
                 ProtoCore.DSASM.RangeStepOperator stepoperator = range.stepoperator;
 
                 double step = 1;
                 if (range.StepNode != null)
                 {
-                    step = (range.StepNode is IntNode) ? (range.StepNode as IntNode).Value :(range.StepNode as DoubleNode).Value;
+                    step = (range.StepNode is IntNode) ? (range.StepNode as IntNode).Value : (range.StepNode as DoubleNode).Value;
                 }
+
+                bool hasAmountOp = range.HasRangeAmountOperator;
+                string warningMsg = String.Empty;
 
                 if (stepoperator == ProtoCore.DSASM.RangeStepOperator.stepsize)
                 {
-                    if (range.StepNode == null && end < current)
+                    if (!hasAmountOp)
                     {
-                        step = -1;
-                    }
+                        if (range.StepNode == null && end < current)
+                        {
+                            step = -1;
+                        }
 
-                    if (step == 0)
-                    {
-                        buildStatus.LogWarning(ProtoCore.BuildData.WarningID.kInvalidRangeExpression, ProtoCore.BuildData.WarningMessage.kRangeExpressionWithStepSizeZero, core.CurrentDSFileName, range.StepNode.line, range.StepNode.col);
-                        EmitNullNode(new NullNode(), ref inferedType);
-                        return;
-                    }
-                    if ((end > current && step < 0) || (end < current && step > 0))
-                    {
-                        buildStatus.LogWarning(ProtoCore.BuildData.WarningID.kInvalidRangeExpression, ProtoCore.BuildData.WarningMessage.kRangeExpressionWithInvalidStepSize, core.CurrentDSFileName, range.StepNode.line, range.StepNode.col);
-                        EmitNullNode(new NullNode(), ref inferedType);
-                        return;
+                        if (step == 0)
+                        {
+                            warningMsg = WarningMessage.kRangeExpressionWithStepSizeZero;
+                        }
+                        else if ((end > current && step < 0) || (end < current && step > 0))
+                        {
+                            warningMsg = WarningMessage.kRangeExpressionWithInvalidStepSize;
+                        }
                     }
                 }
                 else if (stepoperator == ProtoCore.DSASM.RangeStepOperator.num)
                 {
-                    if (range.StepNode != null && !(range.StepNode is IntNode))
+                    if (hasAmountOp)
                     {
-                        buildStatus.LogWarning(ProtoCore.BuildData.WarningID.kInvalidRangeExpression, ProtoCore.BuildData.WarningMessage.kRangeExpressionWithNonIntegerStepNumber, core.CurrentDSFileName, range.StepNode.line, range.StepNode.col);
-                        EmitNullNode(new NullNode(), ref inferedType);
-                        return;
+                        warningMsg = WarningMessage.kRangeExpressionConflictOperator;
                     }
-
-                    if (step <= 0)
+                    else if (range.StepNode != null && !(range.StepNode is IntNode))
                     {
-                        buildStatus.LogWarning(ProtoCore.BuildData.WarningID.kInvalidRangeExpression, ProtoCore.BuildData.WarningMessage.kRangeExpressionWithNegativeStepNumber, core.CurrentDSFileName, range.StepNode.line, range.StepNode.col);
-                        EmitNullNode(new NullNode(), ref inferedType);
-                        return;
+                        warningMsg = WarningMessage.kRangeExpressionWithNonIntegerStepNumber;
+                    }
+                    else if (step <= 0)
+                    {
+                        warningMsg = WarningMessage.kRangeExpressionWithNegativeStepNumber;
                     }
                 }
                 else if (stepoperator == ProtoCore.DSASM.RangeStepOperator.approxsize)
                 {
-                    if (step == 0)
+                    if (hasAmountOp)
                     {
-                        buildStatus.LogWarning(ProtoCore.BuildData.WarningID.kInvalidRangeExpression, ProtoCore.BuildData.WarningMessage.kRangeExpressionWithStepSizeZero, core.CurrentDSFileName, range.StepNode.line, range.StepNode.col);
-                        EmitNullNode(new NullNode(), ref inferedType);
-                        return;
+                        warningMsg = WarningMessage.kRangeExpressionConflictOperator;
                     }
+                    else if (step == 0)
+                    {
+                        warningMsg = WarningMessage.kRangeExpressionWithStepSizeZero;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(warningMsg))
+                {
+                    buildStatus.LogWarning(WarningID.kInvalidRangeExpression,
+                                           warningMsg,
+                                           core.CurrentDSFileName,
+                                           range.StepNode.line,
+                                           range.StepNode.col);
+                    EmitNullNode(new NullNode(), ref inferedType);
+                    return;
                 }
             }
 
@@ -2860,7 +2869,7 @@ namespace ProtoImperative
             }
 
             var rangeExprFunc = nodeBuilder.BuildFunctionCall(Constants.kFunctionRangeExpression,
-                new List<ImperativeNode> { tmpFrom, tmpTo, tmpStep, op, tmpStepSkip });
+                new List<ImperativeNode> { tmpFrom, tmpTo, tmpStep, op, tmpStepSkip, new BooleanNode(range.HasRangeAmountOperator) });
 
             NodeUtils.CopyNodeLocation(rangeExprFunc, range);
             EmitFunctionCallNode(rangeExprFunc, ref inferedType, false, graphNode);

@@ -190,6 +190,11 @@ namespace Revit.GeometryConversion
             return Vector.ByCoordinates(xyz.X, xyz.Y, xyz.Z);
         }
 
+        public static Autodesk.DesignScript.Geometry.UV ToProtoType(this Autodesk.Revit.DB.UV uv)
+        {
+            return Autodesk.DesignScript.Geometry.UV.ByCoordinates(uv.U, uv.V);
+        }
+
 
         /// <summary>
         /// Convert a Revit Plane to a DS Plane.
@@ -240,7 +245,7 @@ namespace Revit.GeometryConversion
 
         #region X&UZ
 
-        public static XYZ GetParallel(this XYZ xyz)
+        public static XYZ GetPerpendicular(this XYZ xyz)
         {
             var ixn = xyz.Normalize();
             var xn = new XYZ(1, 0, 0);
@@ -250,7 +255,12 @@ namespace Revit.GeometryConversion
                 xn = new XYZ(0,1,0);
             }
 
-            return ixn.CrossProduct(xn);
+            return ixn.CrossProduct(xn).Normalize();
+        }
+
+        public static Vector GetPerpendicular(this Vector vector)
+        {
+            return vector.ToXyz().GetPerpendicular().ToVector();
         }
 
         #endregion

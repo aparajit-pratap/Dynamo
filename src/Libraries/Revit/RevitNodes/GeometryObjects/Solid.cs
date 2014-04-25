@@ -5,20 +5,13 @@ using Autodesk.DesignScript.Geometry;
 using Autodesk.DesignScript.Interfaces;
 using Autodesk.DesignScript.Runtime;
 using Autodesk.Revit.DB;
-using Revit.Elements;
 using Revit.GeometryConversion;
-using Revit.GeometryObjects;
 using Revit.Graphics;
 using RevitServices.Persistence;
 using RevitServices.Transactions;
 using Curve = Autodesk.Revit.DB.Curve;
 using CurveLoop = Autodesk.Revit.DB.CurveLoop;
-using Edge = Revit.GeometryObjects.Edge;
-using Element = Revit.Elements.Element;
-using Face = Revit.GeometryObjects.Face;
-using PlanarFace = Autodesk.Revit.DB.PlanarFace;
 using Point = Autodesk.DesignScript.Geometry.Point;
-using Solid = Autodesk.Revit.DB.Solid;
 
 namespace Revit.GeometryObjects
 {
@@ -186,7 +179,7 @@ namespace Revit.GeometryObjects
             // created during this same run, document regeneration will not have
             // occured.
             TransactionManager.Instance.EnsureInTransaction(DocumentManager.Instance.CurrentDBDocument);
-            DocumentManager.Instance.CurrentDBDocument.Regenerate();
+            DocumentManager.Regenerate();
             TransactionManager.Instance.TransactionTaskDone();
 
             var instanceSolids = new Dictionary<ElementId, List<Autodesk.Revit.DB.GeometryObject>>();;
@@ -336,6 +329,15 @@ namespace Revit.GeometryObjects
 
         #endregion
 
+        #region Public methods
+
+        public override object[] Explode()
+        {
+            return Faces;
+        }
+
+        #endregion
+
         #region Public static constructors
 
         /// <summary>
@@ -446,7 +448,7 @@ namespace Revit.GeometryObjects
         /// <param name="direction"></param>
         /// <param name="height"></param>
         /// <returns></returns>
-        public static Solid Cylinder(Autodesk.DesignScript.Geometry.Point origin, double radius, Vector direction, double height)
+        public static Solid Cylinder(Autodesk.DesignScript.Geometry.Point origin, double radius=1, Vector direction=null, double height=2)
         {
             if (radius <= 0)
             {
@@ -490,7 +492,7 @@ namespace Revit.GeometryObjects
         /// <param name="center"></param>
         /// <param name="radius"></param>
         /// <returns></returns>
-        public static Solid Sphere(Autodesk.DesignScript.Geometry.Point center, double radius)
+        public static Solid Sphere(Autodesk.DesignScript.Geometry.Point center, double radius=1)
         {
             if (center == null)
             {
@@ -530,7 +532,7 @@ namespace Revit.GeometryObjects
         /// <param name="radius"></param>
         /// <param name="sectionRadius"></param>
         /// <returns></returns>
-        public static Solid Torus(Vector axis, Point center, double radius, double sectionRadius)
+        public static Solid Torus(Vector axis, Point center, double radius=1, double sectionRadius=0.25)
         {
             if (center == null)
             {
@@ -641,7 +643,7 @@ namespace Revit.GeometryObjects
         /// <param name="y"></param>
         /// <param name="z"></param>
         /// <returns></returns>
-        public static Solid BoxByCenterAndDimensions(Point center,double x, double y, double z)
+        public static Solid BoxByCenterAndDimensions(Point center, double x=1, double y=1, double z=1)
         {
             var bottom = center.ToXyz() - new XYZ(x / 2, y / 2, z / 2);
             var top = center.ToXyz() + new XYZ(x / 2, y / 2, z / 2);
@@ -702,7 +704,7 @@ namespace Revit.GeometryObjects
         /// </summary>
         /// <param name="element"></param>
         /// <returns></returns>
-        public static Solid FromElement(Element element)
+        public static Solid FromElement(Revit.Elements.Element element)
         {
             if (element == null)
             {
@@ -716,7 +718,7 @@ namespace Revit.GeometryObjects
 
         #region Internal Static Constructors
 
-        internal static Revit.GeometryObjects.Solid FromExisting(Autodesk.Revit.DB.Solid solid)
+        internal static Solid FromExisting(Autodesk.Revit.DB.Solid solid)
         {
             return new Solid(solid);
         }
@@ -725,7 +727,7 @@ namespace Revit.GeometryObjects
 
         #region Tesselation
 
-        public override void Tessellate(IRenderPackage package, double tol = -1)
+        public override void Tessellate(IRenderPackage package, double tol = -1, int gridLines = 512)
         {
             var meshes = this.InternalSolid.Faces.Cast<Autodesk.Revit.DB.Face>()
                 .Select(x => x.Triangulate(GraphicsManager.TesselationLevelOfDetail));
