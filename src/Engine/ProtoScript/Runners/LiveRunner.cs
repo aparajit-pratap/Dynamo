@@ -847,7 +847,9 @@ namespace ProtoScript.Runners
         void UpdateGraph(GraphSyncData syncData);
         void UpdateCmdLineInterpreter(string code);
         ProtoCore.Mirror.RuntimeMirror QueryNodeValue(Guid nodeId);
+        ProtoCore.Mirror.RuntimeMirror QueryNodeValue(string varname);
         ProtoCore.Mirror.RuntimeMirror InspectNodeValue(string nodeName);
+        ProtoCore.Mirror.RuntimeMirror GetMirrorForCodeCompletion(string varName);
 
         void UpdateGraph(AssociativeNode astNode);
         #endregion
@@ -943,7 +945,15 @@ namespace ProtoScript.Runners
         private ChangeSetComputer changeSetComputer;
         private ChangeSetApplier changeSetApplier;
 
+        private System.Guid watchGUID;
 
+        public Guid WatchGuid
+        {
+            get
+            {
+                return watchGUID;
+            }
+        }
 
         public LiveRunner()
         {
@@ -1009,6 +1019,8 @@ namespace ProtoScript.Runners
             terminating = false;
             changeSetComputer = new ChangeSetComputer(runnerCore);
             changeSetApplier = new ChangeSetApplier();
+
+            watchGUID = System.Guid.NewGuid();
         }
 
         private void InitOptions()
@@ -1174,6 +1186,27 @@ namespace ProtoScript.Runners
 
         }
 
+        public ProtoCore.Mirror.RuntimeMirror QueryNodeValue(string varname)
+        {
+            while (true)
+            {
+                lock (taskQueue)
+                {
+                    //Spin waiting for the queue to be empty
+                    if (taskQueue.Count == 0)
+                    {
+
+                        //No entries and we have the lock
+                        //Synchronous query to get the node
+
+                        return InternalGetNodeValue(varname);
+                    }
+                }
+                Thread.Sleep(0);
+            }
+
+        }
+
 
 
         /// <summary>
@@ -1202,6 +1235,27 @@ namespace ProtoScript.Runners
                 }
                 Thread.Sleep(0);
             }
+        }
+
+        public ProtoCore.Mirror.RuntimeMirror GetMirrorForCodeCompletion(string varName)
+        {
+            // Create temp CBN to create c = 
+            string code = ProtoCore.DSASM.Constants.kWatchResultVar + " = " + varName + ";";
+
+            List<Subtree> modified = new List<Subtree>();
+
+
+            CodeBlockNode commentCode;
+            var cbn = GraphToDSCompiler.GraphUtilities.Parse(code, out commentCode) as CodeBlockNode;
+            Subtree watchCBN = null == cbn ? new Subtree(null, this.WatchGuid) : new Subtree(cbn.Body, this.WatchGuid);
+
+            modified.Add(watchCBN);
+            GraphSyncData syncData = new GraphSyncData(null, null, modified);
+            this.UpdateGraph(syncData);
+
+            var mirror = this.InspectNodeValue(ProtoCore.DSASM.Constants.kWatchResultVar);
+            return mirror;
+
         }
 
         /// <summary>
@@ -1388,7 +1442,7 @@ namespace ProtoScript.Runners
        
 
         /// <summary>
-        /// This is being called currently as it uses the Expression interpreter which does not
+        /// This is not being called currently as it uses the Expression interpreter which does not
         /// work well with delta execution. Instead we are currently inspecting into the VM using Mirrors
         /// </summary>
         /// <param name="varname"></param>

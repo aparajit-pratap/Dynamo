@@ -110,6 +110,25 @@ namespace Dynamo.DSEngine
             return mirror;
         }
 
+        public RuntimeMirror GetMirrorForCodeCompletion(string variableName)
+        {
+            RuntimeMirror mirror = null;
+            try
+            {
+                mirror = liveRunnerServices.GetMirrorForCodeCompletion(variableName);
+            }
+            catch (SymbolNotFoundException)
+            {
+                // The variable hasn't been defined yet. Just skip it. 
+            }
+            catch (Exception ex)
+            {
+                dynSettings.DynamoLogger.Log("Failed to get mirror for variable: " + variableName + "; reason: " + ex.Message);
+            }
+
+            return mirror;
+        }
+
         public string ConvertNodesToCode(IEnumerable<NodeModel> nodes, out Dictionary<string,string> variableNames)
         {
             variableNames = new Dictionary<string, string>();

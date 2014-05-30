@@ -1473,6 +1473,19 @@ namespace Dynamo.Models
 
                 var ident = AstIdentifierForPreview.Name;
 
+                ////////////////////////////////////////////
+                
+
+                foreach (var varName in drawableIds)
+                {
+                    IEnumerable<string> members;
+                    RuntimeMirror mirror = dynSettings.Controller.EngineController.GetMirrorForCodeCompletion(varName);
+                    if (mirror != null)
+                        members = mirror.GetMembers();
+                }
+
+                ////////////////////////////////////////////
+
                 var data = from varName in drawableIds
                            select dynSettings.Controller.EngineController.GetMirror(varName)
                            into mirror

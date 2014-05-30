@@ -63,6 +63,7 @@
     <Compile Include="DropDown.cs" />
     <Compile Include="DummyNode.cs" />
     <Compile Include="Enum.cs" />
+    <Compile Include="FileWatcher.cs" />
     <Compile Include="Formula.cs" />
     <Compile Include="HigherOrder\Apply.cs" />
     <Compile Include="HigherOrder\MapCombineLacing.cs" />

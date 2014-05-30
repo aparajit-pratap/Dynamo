@@ -49,7 +49,7 @@ namespace Dynamo.Nodes
         }
     }
 
-    class FileWatch : IDisposable
+    public class FileWatch : IDisposable
     {
         public bool Changed { get; private set; }
 
@@ -57,6 +57,49 @@ namespace Dynamo.Nodes
         private readonly FileSystemEventHandler handler;
 
         public event FileSystemEventHandler FileChanged;
+
+        //public static FileWatch FileWatcher(string fileName)
+        //{
+        //    FileWatch fw = new FileWatch(fileName);
+        //    //fw.FileChanged += fileWatcherChanged;
+        //    return fw;
+        //}
+
+        //public static bool FileWatcherChanged(FileWatch fileWatcher)
+        //{
+        //    return fileWatcher.Changed;
+        //}
+
+        //public static bool FileWatcherWait(FileWatch fileWatcher, int limit)
+        //{
+        //    var watcher = fileWatcher;
+        //    double timeout = limit;
+
+        //    timeout = timeout == 0 ? double.PositiveInfinity : timeout;
+
+        //    int tick = 0;
+        //    while (!watcher.Changed)
+        //    {
+        //        //if (dynSettings.Controller.RunCancelled)
+        //        //    throw new Exception("Run Cancelled");
+
+        //        System.Threading.Thread.Sleep(10);
+        //        tick += 10;
+
+        //        if (tick >= timeout)
+        //        {
+        //            throw new Exception("File watcher timeout!");
+        //        }
+        //    }
+
+        //    return true;
+        //}
+
+        //public static FileWatch FileWatcherReset(FileWatch fileWatcher)
+        //{
+        //    fileWatcher.Reset();
+        //    return fileWatcher;
+        //}
 
         public FileWatch(string filePath)
         {
@@ -83,7 +126,7 @@ namespace Dynamo.Nodes
         {
             Changed = true;
             if (FileChanged != null)
-                FileChanged(sender, e);
+                FileChanged(this, e);
         }
 
         public void Reset()

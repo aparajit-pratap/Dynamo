@@ -5,10 +5,14 @@ using Autodesk.DesignScript.Runtime;
 using System.IO;
 using System.Text;
 using System;
+using System.Linq;
+using Dynamo.Nodes;
+using Dynamo.Models;
+using Dynamo.Utilities;
 
 namespace DSCore
 {
-    public static class File
+    public static class File 
     {
         /// <summary>
         ///     Load a bitmap from a file path.
@@ -151,6 +155,86 @@ namespace DSCore
             }
 
             return true;
+        }
+    }
+
+    [IsVisibleInDynamoLibrary(false)]
+    public static class FileW
+    {
+        /// <summary>
+        /// Creates a FileWatcher for watching changes in a file.
+        /// </summary>
+        /// <param name="fileName">Path to the file to create a watcher for</param>
+        /// <returns>Instance of a FileWatcher</returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static FileWatch FileWatcher(string fileName)
+        {
+            FileWatch fw = new FileWatch(fileName);
+            fw.FileChanged += fileWatcherChanged;
+            return fw;
+        }
+
+        private static void fileWatcherChanged(object sender, FileSystemEventArgs e)
+        {
+            // Need to re-execute "FileWatcherChanged" node in LiveRunner ??
+
+            FileWatcherChanged((FileWatch)sender);            
+        }
+
+        /// <summary>
+        /// Checks if the file watched by the given FileWatcher has changed.
+        /// </summary>
+        /// <param name="fileWatcher">File Watcher to check for a change</param>
+        /// <returns>Whether or not the file has been changed</returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static bool FileWatcherChanged(FileWatch fileWatcher)
+        {
+            //dynSettings.Controller.DynamoViewModel.Model.HomeSpace.Nodes.Select(n => n is FileWatcherChanged);
+            return fileWatcher.Changed;
+        }
+
+        /// <summary>
+        /// Waits for the specified watched file to change
+        /// </summary>
+        /// <param name="fileWatcher">File Watcher to check for a change</param>
+        /// <param name="limit">Amount of time (in milliseconds) to wait for an update before failing.</param>
+        /// <returns>True: File was changed. False: Timed out.</returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static bool FileWatcherWait(FileWatch fileWatcher, int limit)
+        {
+            var watcher = fileWatcher;
+            double timeout = limit;
+
+            timeout = timeout == 0 ? double.PositiveInfinity : timeout;
+
+            int tick = 0;
+            while (!watcher.Changed)
+            {
+                //if (dynSettings.Controller.RunCancelled)
+                //    throw new Exception("Run Cancelled");
+
+                System.Threading.Thread.Sleep(10);
+                tick += 10;
+
+                if (tick >= timeout)
+                {
+                    throw new Exception("File watcher timeout!");
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Resets state of FileWatcher so that it watches again.
+        /// </summary>
+        /// <param name="fileWatcher">File Watcher to check for a change</param>
+        /// <returns>Updated watcher.</returns>
+        [IsVisibleInDynamoLibrary(false)]
+        public static FileWatch FileWatcherReset(FileWatch fileWatcher)
+        {
+            fileWatcher.Reset();
+            return fileWatcher;
         }
     }
 }

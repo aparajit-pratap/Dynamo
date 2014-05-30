@@ -50,15 +50,23 @@ namespace Dynamo.DSEngine
 
         public RuntimeMirror GetMirror(string var)
         {
-           
-
+         
             var mirror = liveRunner.InspectNodeValue(var);
 
             if (dynSettings.VerboseLogging)
                 dynSettings.DynamoLogger.Log("LRS.GetMirror var: " + var + " " + (mirror != null ? mirror.GetStringData() : "null"));
 
             return mirror;
+        }
 
+        public RuntimeMirror GetMirrorForCodeCompletion(string var)
+        {
+            var mirror = liveRunner.GetMirrorForCodeCompletion(var);
+
+            if (dynSettings.VerboseLogging)
+                dynSettings.DynamoLogger.Log("LRS.GetMirror var: " + var + " " + (mirror != null ? mirror.GetStringData() : "null"));
+
+            return mirror;
         }
 
         /// <summary>
