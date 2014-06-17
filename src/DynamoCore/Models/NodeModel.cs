@@ -1479,9 +1479,13 @@ namespace Dynamo.Models
                 foreach (var varName in drawableIds)
                 {
                     IEnumerable<string> members;
+                    IEnumerable<string> completions;
                     RuntimeMirror mirror = dynSettings.Controller.EngineController.GetMirrorForCodeCompletion(varName);
                     if (mirror != null)
+                    {
+                        completions = dynSettings.Controller.EngineController.GetSymbols(varName);
                         members = mirror.GetMembers();
+                    }
                 }
 
                 ////////////////////////////////////////////

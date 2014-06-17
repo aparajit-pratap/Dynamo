@@ -4,13 +4,21 @@ using System.Linq;
 using System.Text;
 
 using System.Text.RegularExpressions;
+using Dynamo.Utilities;
+using ProtoCore.Mirror;
 
 namespace DynamoUtilities
 {
     class CodeCompletionParser
     {
         Stack<string> expressionStack = new Stack<string>();
+        
         string strPrefix = String.Empty;
+        public string StringPrefix
+        {
+            get { return strPrefix; }
+        }
+        
         string type = string.Empty;
         int argCount = 0;
 
@@ -21,16 +29,17 @@ namespace DynamoUtilities
         //    MethodArgument
         //}
         
-        static Regex identifierDelimiter = new Regex(@"([.\[\]])");
+        //static Regex identifierDelimiter = new Regex(@"([.\[\]])");
 
         /// <summary>
         /// Given a line of code and the character that's currently being typed in a CBN,
         /// this function extracts the expression that needs to be code-completed
         /// </summary>
         /// <param name="strPrefix"></param>
-        public string ParseCodeToComplete(char currentChar)
+        public IEnumerable<string> ParseCodeToComplete(char currentChar)
         {
             string prefix = string.Empty;
+            IEnumerable<string> completions = null;
             switch (currentChar)
             {
                 case ']':                    
@@ -84,6 +93,8 @@ namespace DynamoUtilities
                     // popup list of options available on type
                     // runtime or static type must be known 
                     // type = GetType(strPrefix);
+                    //RuntimeMirror mirror = dynSettings.Controller.EngineController.GetMirrorForCodeCompletion(strPrefix);
+                    //completions = mirror.GetMembers();
                     strPrefix += '.';
                     break;
                 case ' ':
@@ -106,6 +117,7 @@ namespace DynamoUtilities
                         {
                             // Search for identifier for auto-completion
                             // search in class, global function and symbol table to try to auto-complete
+                            completions = dynSettings.Controller.EngineController.GetSymbols(strPrefix);
                         }
                     }                    
                     else
@@ -117,7 +129,7 @@ namespace DynamoUtilities
                     }
                     break;
             }
-            return strPrefix;
+            return completions;
         }
 
 #region private utility methods

@@ -849,6 +849,7 @@ namespace ProtoScript.Runners
         ProtoCore.Mirror.RuntimeMirror QueryNodeValue(Guid nodeId);
         ProtoCore.Mirror.RuntimeMirror QueryNodeValue(string varname);
         ProtoCore.Mirror.RuntimeMirror InspectNodeValue(string nodeName);
+        ClassMirror GetStaticType(string className);
         ProtoCore.Mirror.RuntimeMirror GetMirrorForCodeCompletion(string varName);
 
         void UpdateGraph(AssociativeNode astNode);
@@ -1237,10 +1238,18 @@ namespace ProtoScript.Runners
             }
         }
 
-        public ProtoCore.Mirror.RuntimeMirror GetMirrorForCodeCompletion(string varName)
+        public ClassMirror GetStaticType(string className)
         {
+            
+            ClassMirror type = new ClassMirror(className, this.Core);
+            return type;            
+        }
+
+        public ProtoCore.Mirror.RuntimeMirror GetMirrorForCodeCompletion(string expression)
+        {
+            
             // Create temp CBN to create c = 
-            string code = ProtoCore.DSASM.Constants.kWatchResultVar + " = " + varName + ";";
+            string code = ProtoCore.DSASM.Constants.kWatchResultVar + " = " + expression + ";";
 
             List<Subtree> modified = new List<Subtree>();
 

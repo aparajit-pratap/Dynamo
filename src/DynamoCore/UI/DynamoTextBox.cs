@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -13,6 +14,7 @@ using Dynamo.Utilities;
 using Dynamo.ViewModels;
 using DynCmd = Dynamo.ViewModels.DynamoViewModel;
 using System.Windows.Controls.Primitives;
+using ProtoCore.Mirror;
 
 namespace Dynamo.Nodes
 {
@@ -260,6 +262,10 @@ namespace Dynamo.Nodes
     public class CodeNodeTextBox : DynamoTextBox
     {
         bool shift, enter;
+        CodeCompletionHandler codeCompleter;
+        DynamoUtilities.CodeCompletionParser codeParser;
+        public bool skipLostFocusEvent = false;
+        
         public CodeNodeTextBox(string s)
             : base(s)
         {
@@ -275,6 +281,11 @@ namespace Dynamo.Nodes
             //Set style for Watermark
             this.SetResourceReference(TextBox.StyleProperty, "CodeBlockNodeTextBox");
             this.Tag = "Your code goes here";
+
+            codeParser = new DynamoUtilities.CodeCompletionParser();
+            codeCompleter = new CodeCompletionHandler(this);
+
+            
         }
 
         /// <summary>
@@ -296,11 +307,74 @@ namespace Dynamo.Nodes
             {
                 HandleEscape();
             }
+            else
+            {
+                //IEnumerable<string> completions = codeParser.ParseCodeToComplete();
+                
+            }
             if (shift == true && enter == true)
             {
                 dynSettings.ReturnFocusToSearch();
                 shift = enter = false;
             }
+        }
+
+        protected override void OnTextInput(TextCompositionEventArgs e)
+        {
+            base.OnTextInput(e);
+
+            string code = e.Text;
+            
+            for (int i = 0; i < code.Length; ++i)
+            {
+                codeParser.ParseCodeToComplete(code[i]);
+            }
+            char currentChar = code[code.Length - 1];
+            if (currentChar.Equals('.'))
+            {
+                IEnumerable<string> completions = null;
+                string strPrefix = codeParser.StringPrefix.Remove(codeParser.StringPrefix.Length - 1);
+                ClassMirror type = dynSettings.Controller.EngineController.GetStaticType(strPrefix);
+                if (type == null)
+                {
+                    RuntimeMirror mirror = dynSettings.Controller.EngineController.GetMirrorForCodeCompletion(strPrefix);
+                    if (mirror != null)
+                    {
+                        completions = mirror.GetMembers();
+                    }
+                }
+                else
+                {
+                    completions = type.GetMembers();
+                }                
+                if (completions != null)
+                {
+                    skipLostFocusEvent = true;
+                    codeCompleter.UpdateCompletionList(0, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
+                }                
+            }
+            else if (char.IsLetterOrDigit(currentChar))
+            {
+                string strPrefix = codeParser.StringPrefix;
+                if (strPrefix.IndexOf('.') != -1)
+                {
+                    // If type exists, extract string after previous '.'                            
+                    //string identToComplete = GetMemberIdentifier(strPrefix);
+                    // Auto-completion happens over type, search for identToComplete in type's auto-complete list
+                }
+                else
+                {
+                    // Search for identifier for auto-completion
+                    // search in class, global function and symbol table to try to auto-complete
+                    IEnumerable<string> completions = dynSettings.Controller.EngineController.GetSymbols(strPrefix);
+                    if (completions != null)
+                    {
+                        skipLostFocusEvent = true;
+                        codeCompleter.UpdateCompletionList(strPrefix.Length, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
+                    }
+                }
+            }     
+
         }
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
@@ -325,8 +399,17 @@ namespace Dynamo.Nodes
         /// </summary>
         protected override void OnLostFocus(RoutedEventArgs e)
         {
-            Pending = true;
-            base.OnLostFocus(e);
+            if (!skipLostFocusEvent)
+            {
+                Pending = true;
+                base.OnLostFocus(e);
+            }
+        }
+
+        protected override void OnGotFocus(RoutedEventArgs e)
+        {
+            base.OnGotFocus(e);
+            skipLostFocusEvent = false;
         }
 
         private void HandleEscape()

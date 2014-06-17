@@ -59,12 +59,17 @@ namespace Dynamo.DSEngine
             return mirror;
         }
 
-        public RuntimeMirror GetMirrorForCodeCompletion(string var)
+        public ClassMirror GetStaticType(string className)
         {
-            var mirror = liveRunner.GetMirrorForCodeCompletion(var);
+            return liveRunner.GetStaticType(className);
+        }
+
+        public RuntimeMirror GetMirrorForCodeCompletion(string expression)
+        {
+            var mirror = liveRunner.GetMirrorForCodeCompletion(expression);
 
             if (dynSettings.VerboseLogging)
-                dynSettings.DynamoLogger.Log("LRS.GetMirror var: " + var + " " + (mirror != null ? mirror.GetStringData() : "null"));
+                dynSettings.DynamoLogger.Log("LRS.GetMirror var: " + expression + " " + (mirror != null ? mirror.GetStringData() : "null"));
 
             return mirror;
         }
