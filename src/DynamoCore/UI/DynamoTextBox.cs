@@ -349,7 +349,7 @@ namespace Dynamo.Nodes
                 }                
                 if (completions != null)
                 {
-                    skipLostFocusEvent = true;
+                    //skipLostFocusEvent = true;
                     codeCompleter.UpdateCompletionList(0, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
                 }                
             }
@@ -369,13 +369,14 @@ namespace Dynamo.Nodes
                     IEnumerable<string> completions = dynSettings.Controller.EngineController.GetSymbols(strPrefix);
                     if (completions != null)
                     {
-                        skipLostFocusEvent = true;
+                        //skipLostFocusEvent = true;
                         codeCompleter.UpdateCompletionList(strPrefix.Length, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
                     }
                 }
             }     
 
         }
+
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
             if (e.Key == Key.LeftShift || e.Key == Key.RightShift)

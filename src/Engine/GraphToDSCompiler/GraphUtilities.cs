@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using ProtoCore.Utils;
 using System.IO;
 using ProtoCore.DSASM;
+using ProtoCore.AST.AssociativeAST;
 
 namespace GraphToDSCompiler
 {
@@ -788,7 +789,7 @@ namespace GraphToDSCompiler
                 string stmt = string.Empty; 
 
                 // Append the temporaries only if it is not a function def or class decl
-                bool isFunctionOrClassDef = n is ProtoCore.AST.AssociativeAST.FunctionDefinitionNode || n is ProtoCore.AST.AssociativeAST.ClassDeclNode;
+                bool isFunctionOrClassDef = n is FunctionDefinitionNode || n is ClassDeclNode;
 
                 if (isFunctionOrClassDef)
                 {

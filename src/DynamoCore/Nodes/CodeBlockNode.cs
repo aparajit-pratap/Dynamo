@@ -839,7 +839,8 @@ namespace Dynamo.Nodes
                     && !tempVariables.Contains(ident)
                     && !identNode.Equals(this.identifier))
                 {
-                    identNode.Name = identNode.Value = LocalizeIdentifier(ident);
+                    //identNode.Name = identNode.Value = LocalizeIdentifier(ident);
+                    identNode.Name = identNode.Value;
                 }
 
                 MapIdentifiers(identNode.ArrayDimensions);
