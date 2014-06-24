@@ -264,7 +264,7 @@ namespace Dynamo.Nodes
         bool shift, enter;
         CodeCompletionHandler codeCompleter;
         DynamoUtilities.CodeCompletionParser codeParser;
-        public bool skipLostFocusEvent = false;
+        private bool isSelectionFromList;
         
         public CodeNodeTextBox(string s)
             : base(s)
@@ -314,9 +314,21 @@ namespace Dynamo.Nodes
             }
             if (shift == true && enter == true)
             {
-                dynSettings.ReturnFocusToSearch();
+                //dynSettings.ReturnFocusToSearch();
                 shift = enter = false;
             }
+        }
+
+        internal void ReParseText()
+        {
+            codeParser = new DynamoUtilities.CodeCompletionParser();
+
+            string code = this.Text;
+            for (int i = 0; i < code.Length; ++i)
+            {
+                codeParser.ParseCodeToComplete(code[i]);
+            }
+            isSelectionFromList = true;
         }
 
         protected override void OnTextInput(TextCompositionEventArgs e)
@@ -324,12 +336,19 @@ namespace Dynamo.Nodes
             base.OnTextInput(e);
 
             string code = e.Text;
-            
+
+            char currentChar = code[code.Length - 1];
+            if (isSelectionFromList)
+            {
+                isSelectionFromList = false;
+                if (currentChar.Equals('\r'))
+                    return;
+            }
             for (int i = 0; i < code.Length; ++i)
             {
                 codeParser.ParseCodeToComplete(code[i]);
             }
-            char currentChar = code[code.Length - 1];
+            
             if (currentChar.Equals('.'))
             {
                 IEnumerable<string> completions = null;
@@ -349,7 +368,6 @@ namespace Dynamo.Nodes
                 }                
                 if (completions != null)
                 {
-                    //skipLostFocusEvent = true;
                     codeCompleter.UpdateCompletionList(0, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
                 }                
             }
@@ -369,7 +387,6 @@ namespace Dynamo.Nodes
                     IEnumerable<string> completions = dynSettings.Controller.EngineController.GetSymbols(strPrefix);
                     if (completions != null)
                     {
-                        //skipLostFocusEvent = true;
                         codeCompleter.UpdateCompletionList(strPrefix.Length, this.GetRectFromCharacterIndex(this.CaretIndex, true), completions.ToList());
                     }
                 }
@@ -379,13 +396,18 @@ namespace Dynamo.Nodes
 
         protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
-            if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
+            switch (e.Key)
             {
-                shift = false;
-            }
-            else if (e.Key == Key.Enter || e.Key == Key.Return)
-            {
-                enter = false;
+                case Key.LeftShift:
+                case Key.RightShift:
+                    shift = true;
+                    break;
+                case Key.Enter:
+                    enter = true;
+                    break;
+                case Key.Up:
+                    codeCompleter.SetFocusOnList();
+                    break;
             }
         }
         #endregion
@@ -400,7 +422,7 @@ namespace Dynamo.Nodes
         /// </summary>
         protected override void OnLostFocus(RoutedEventArgs e)
         {
-            if (!skipLostFocusEvent)
+            if (!this.codeCompleter.IsKeyboardFocusWithin)
             {
                 Pending = true;
                 base.OnLostFocus(e);
@@ -410,7 +432,6 @@ namespace Dynamo.Nodes
         protected override void OnGotFocus(RoutedEventArgs e)
         {
             base.OnGotFocus(e);
-            skipLostFocusEvent = false;
         }
 
         private void HandleEscape()

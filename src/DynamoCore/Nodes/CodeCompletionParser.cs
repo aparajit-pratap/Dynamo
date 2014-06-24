@@ -101,6 +101,11 @@ namespace DynamoUtilities
                     break;
                 case '=':
                     strPrefix = string.Empty;
+                    expressionStack.Clear();
+                    break;
+                case ';':
+                    strPrefix = string.Empty;
+                    expressionStack.Clear();
                     break;
                 default:
                     if (char.IsLetterOrDigit(currentChar))

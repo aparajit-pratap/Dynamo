@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using Dynamo.Nodes;
 
 namespace Dynamo.UI
 {
@@ -23,36 +24,39 @@ namespace Dynamo.UI
             var list = new ListBox();
             list.KeyDown += list_KeyDown;
 
-            list.MouseLeftButtonDown += list_MouseLeftButtonDown;
+            //list.MouseLeftButtonDown += list_MouseLeftButtonDown;
+            //list.PreviewMouseLeftButtonDown += list_PreviewMouseLeftButtonDown;
             list.IsTextSearchEnabled = true;
             //p.LostFocus += p_LostFocus;
             list.FontSize = tb.FontSize * 0.8;            
             
             p.Child = list;
             p.StaysOpen = false;
-            //p.Placement = PlacementMode.Custom;
             p.Placement = PlacementMode.Bottom;
             p.PlacementTarget = tb;
             textBox = tb;
             
-            
-            //p.CustomPopupPlacementCallback = delegate(Size popupSize, Size targetSize, Point offset)
-            //{
-            //    return new[] { new CustomPopupPlacement(new Point(10, 10), PopupPrimaryAxis.Vertical) };
-            //};
-            
             popup = p;
         }
 
-        void list_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        internal bool IsKeyboardFocusWithin
         {
-            var item = (sender as ListBox).SelectedItem as string;
-            if (item != null)
-            {
-                this.textBox.Text = this.textBox.Text.Insert(textBox.SelectionStart, item);
-            }
-            ((sender as ListBox).Parent as Popup).IsOpen = false;
+            get { return popup.IsKeyboardFocusWithin; }
         }
+
+        //void list_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        //{
+        //}
+
+        //void list_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        //{
+        //    var item = (sender as ListBox).SelectedItem as string;
+        //    if (item != null)
+        //    {
+        //        this.textBox.Text = this.textBox.Text.Insert(textBox.SelectionStart, item);
+        //    }
+        //    ((sender as ListBox).Parent as Popup).IsOpen = false;
+        //}
 
         //void p_LostFocus(object sender, RoutedEventArgs e)
         //{
@@ -64,11 +68,17 @@ namespace Dynamo.UI
         {
             popup.PlacementRectangle = placementRect;
             ListBox list = popup.Child as ListBox;
-            list.SelectedIndex = 0;
             //list.Focus();
             list.Items.Clear();
             items.ForEach(x => list.Items.Add(x));
-            popup.IsOpen = true;
+            list.SelectedIndex = 0;
+
+            if (popup.IsOpen == false)
+            {
+                popup.IsOpen = true;
+                // list.Focus();
+            }
+
             this.prefixLength = prefixLength;
         }
 
@@ -112,6 +122,11 @@ namespace Dynamo.UI
                     // Move focus back to the text box. 
                     // This will auto-hide the PopUp due to StaysOpen="false"
                     textBox.Focus();
+
+                    CodeNodeTextBox cntextBox = textBox as CodeNodeTextBox;
+                    if (cntextBox != null)
+                        cntextBox.ReParseText();
+
                     break;
 
                 case System.Windows.Input.Key.Escape:
@@ -121,6 +136,11 @@ namespace Dynamo.UI
             }            
         }
 
-        
+        internal void SetFocusOnList()
+        {
+            var list = this.popup.Child as ListBox;
+            if (!list.IsKeyboardFocused)
+                list.Focus();
+        }
     }
 }
