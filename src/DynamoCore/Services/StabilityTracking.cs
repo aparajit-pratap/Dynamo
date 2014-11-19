@@ -13,21 +13,16 @@ namespace Dynamo.Services
     {
         private Stopwatch globalTime;
         private Stopwatch timeSinceLastCrash;
-        private static StabilityTracking instance;
-        private readonly static Object mutex = new object();
+        private static readonly StabilityTracking instance = new StabilityTracking();
 
         public static StabilityTracking GetInstance()
         {
-            lock (mutex)
-            {
-                if (instance == null)
-                {
-                    instance = new StabilityTracking();
-                }    
-            }
-
             return instance;
         }
+
+        // ensures lazy initialization of static type
+        // only when instance has been created or static member is referenced
+        static StabilityTracking() { }
 
         private StabilityTracking()
         {
