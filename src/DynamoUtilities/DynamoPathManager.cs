@@ -17,6 +17,7 @@ namespace DynamoUtilities
         private List<string> addResolvePaths = new List<string>();
 
         private static DynamoPathManager instance;
+        private static readonly object mutex = new object();
 
         /// <summary>
         /// The main execution path of Dynamo. This is the directory
@@ -97,12 +98,25 @@ namespace DynamoUtilities
 
         public static DynamoPathManager Instance
         {
-            get { return instance ?? (instance = new DynamoPathManager()); }
+            get
+            {
+                lock (mutex)
+                {
+                    if (instance == null)
+                    {
+                        instance = new DynamoPathManager();
+                    }
+                    return instance;
+                }
+            }
         }
 
         internal static void DestroyInstance()
         {
-            instance = null;
+            lock (mutex)
+            {
+                instance = null;
+            }
         }
 
         /// <summary>

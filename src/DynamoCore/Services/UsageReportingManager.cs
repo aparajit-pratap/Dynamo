@@ -18,6 +18,7 @@ namespace Dynamo.Services
 
         private static DynamoModel dynamoModel;
         private static UsageReportingManager instance;
+        private static readonly object mutex = new object();
 
         #endregion
 
@@ -25,12 +26,25 @@ namespace Dynamo.Services
 
         public static UsageReportingManager Instance
         {
-            get { return instance ?? (instance = new UsageReportingManager()); }
+            get
+            {
+                lock (mutex)
+                {
+                    if (instance == null)
+                    {
+                        instance = new UsageReportingManager();
+                    }
+                    return instance;
+                }
+            }
         }
 
         public static void DestroyInstance()
         {
-            instance = null;
+            lock (mutex)
+            {
+                instance = null;
+            }
         }
 
         #endregion

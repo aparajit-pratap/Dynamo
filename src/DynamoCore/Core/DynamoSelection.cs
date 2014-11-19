@@ -12,32 +12,38 @@ namespace Dynamo.Selection
     {
         private static DynamoSelection _instance;
         private SmartCollection<ISelectable> selection = new SmartCollection<ISelectable>();
+        private static readonly object mutex = new object();
 
         public static DynamoSelection Instance
         {
             get
             {
-                if (_instance == null)
+                lock(mutex)
                 {
-                    _instance = new DynamoSelection();
+                    if (_instance == null)
+                    {
+                        _instance = new DynamoSelection();
+                    }
+                    return _instance;
                 }
-
-                return _instance;
             }
         }
 
         public static void DestroyInstance()
         {
-            if (_instance != null)
+            lock (mutex)
             {
-                if (_instance.selection != null)
+                if (_instance != null)
                 {
-                    _instance.selection.CollectionChanged -= selection_CollectionChanged;
-                    _instance.selection.Clear();
-                    _instance.selection = null;
-                }
+                    if (_instance.selection != null)
+                    {
+                        _instance.selection.CollectionChanged -= selection_CollectionChanged;
+                        _instance.selection.Clear();
+                        _instance.selection = null;
+                    }
 
-                _instance = null;
+                    _instance = null;
+                }
             }
         }
 
