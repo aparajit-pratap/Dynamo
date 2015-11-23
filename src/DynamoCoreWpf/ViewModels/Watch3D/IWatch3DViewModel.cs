@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Interfaces;
 using Dynamo.Models;
@@ -49,16 +50,18 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         void DeleteGeometryForIdentifier(string identifier, bool requestUpdate = true);
 
         /// <summary>
-        /// Highlight geometry corresponding to their respective nodes 
+        /// Highlight geometry corresponding to their respective identifiers 
         /// </summary>
-        /// <param name="nodes"></param>
-        void HighlightNodeGraphics(IEnumerable<NodeModel> nodes);
+        /// <param name="identifiers"></param>
+        /// <param name="highlightColor"></param>
+        void HighlightNodeGraphics(IEnumerable<string> identifiers, Color highlightColor);
 
         /// <summary>
-        /// Unhighlight geometry corresponding to their respective nodes 
+        /// Unhighlight geometry corresponding to their respective identifiers 
         /// </summary>
-        /// <param name="nodes"></param>
-        void UnHighlightNodeGraphics(IEnumerable<NodeModel> nodes);
+        /// <param name="identifiers"></param>
+        /// <param name="defaultColor"></param>
+        void UnHighlightNodeGraphics(IEnumerable<string> identifiers, Color defaultColor);
 
         #region Watch view Events to be handled by extensions
 

@@ -446,12 +446,12 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             // Override in derived classes.
         }
 
-        public virtual void HighlightNodeGraphics(IEnumerable<NodeModel> nodes)
+        public virtual void HighlightNodeGraphics(IEnumerable<string> identifiers, Color highlightColor)
         {
             // Override in derived classes.
         }
 
-        public virtual void UnHighlightNodeGraphics(IEnumerable<NodeModel> nodes)
+        public virtual void UnHighlightNodeGraphics(IEnumerable<string> identifiers, Color defaultColor)
         {
             // Override in derived classes.
         }

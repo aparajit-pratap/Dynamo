@@ -40,7 +40,7 @@ using TextInfo = HelixToolkit.Wpf.SharpDX.TextInfo;
 namespace Dynamo.Wpf.ViewModels.Watch3D
 {
     public class CameraData
-    { 
+    {
         // Default camera position data. These values have been rounded
         // to the nearest whole value.
         // eyeX="-16.9655136013663" eyeY="24.341577725171" eyeZ="50.6494323150915" 
@@ -52,7 +52,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         private readonly Vector3D defaultCameraUpDirection = new Vector3D(0, 1, 0);
         private const double defaultNearPlaneDistance = 0.1;
         private const double defaultFarPlaneDistance = 10000000;
-         
+
         public Point3D EyePosition { get; set; }
         public Vector3D UpDirection { get; set; }
         public Vector3D LookDirection { get; set; }
@@ -118,7 +118,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         private double nearPlaneDistanceFactor = 0.001;
         internal const double DefaultNearClipDistance = 0.1f;
         internal const double DefaultFarClipDistance = 100000;
-        internal static BoundingBox DefaultBounds = new BoundingBox(new Vector3(-25f, -25f, -25f), new Vector3(25f,25f,25f));
+        internal static BoundingBox DefaultBounds = new BoundingBox(new Vector3(-25f, -25f, -25f), new Vector3(25f, 25f, 25f));
 
 #if DEBUG
         private readonly Stopwatch renderTimer = new Stopwatch();
@@ -178,7 +178,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         public event Action<BoundingBox> RequestZoomToFit;
         protected void OnRequestZoomToFit(BoundingBox bounds)
         {
-            if(RequestZoomToFit != null)
+            if (RequestZoomToFit != null)
             {
                 RequestZoomToFit(bounds);
             }
@@ -381,7 +381,8 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             }
         }
 
-        protected HelixWatch3DViewModel(Watch3DViewModelStartupParams parameters) : base(parameters)
+        protected HelixWatch3DViewModel(Watch3DViewModelStartupParams parameters)
+            : base(parameters)
         {
             Name = Resources.BackgroundPreviewName;
             IsResizable = false;
@@ -597,7 +598,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
 
                 case "IsVisible":
                     var geoms = FindAllGeometryModel3DsForNode(node.AstIdentifierBase);
-                    foreach(var g in geoms)
+                    foreach (var g in geoms)
                     {
                         g.Value.Visibility = node.IsVisible ? Visibility.Visible : Visibility.Hidden;
                         //RaisePropertyChanged("SceneItems");
@@ -702,6 +703,14 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         protected override void ZoomToFit(object parameter)
         {
             var idents = FindIdentifiersForContext();
+            if (!DynamoSelection.Instance.Selection.Any())
+            {
+                OnRequestZoomToFit(ComputeBoundsForGeometry(SceneItems.Where(item => item is GeometryModel3D).Cast<GeometryModel3D>().ToArray()));
+            }
+
+            var selNodes = DynamoSelection.Instance.Selection.Where(s => s is NodeModel).Cast<NodeModel>().ToArray();
+            if (!selNodes.Any()) return;
+
             var geoms = SceneItems.Where(item => item is GeometryModel3D).Cast<GeometryModel3D>();
             var targetGeoms = FindGeometryForIdentifiers(geoms, idents);
             var selectionBounds = ComputeBoundsForGeometry(targetGeoms.ToArray());
@@ -827,7 +836,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
 
                 var modelValues = geometryModels.Select(x => x.Value);
 
-                foreach(GeometryModel3D g in modelValues)
+                foreach (GeometryModel3D g in modelValues)
                 {
                     g.SetValue(AttachedProperties.ShowSelectedProperty, isSelected);
                 }
@@ -1229,7 +1238,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
                         {
                             // If the package contains mesh vertices, then the lines represent the 
                             // edges of meshes. Draw them with a different thickness.
-                            lineGeometry3D = CreateLineGeometryModel3D(rp, rp.MeshVertices.Any()?0.5:1.0);
+                            lineGeometry3D = CreateLineGeometryModel3D(rp, rp.MeshVertices.Any() ? 0.5 : 1.0);
                             Model3DDictionary.Add(id, lineGeometry3D);
                         }
 
@@ -1330,12 +1339,12 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             if (args.Viewport == null) return;
 
             var vm = viewModel as DynamoViewModel;
-            if(vm == null) return;
+            if (vm == null) return;
 
             foreach (var node in vm.Model.CurrentWorkspace.Nodes)
             {
                 var foundNode = node.AstIdentifierBase.Contains(
-                    ((PointGeometryModel3D) e.OriginalSource).Name);
+                    ((PointGeometryModel3D)e.OriginalSource).Name);
 
                 if (!foundNode) continue;
 
@@ -1345,38 +1354,55 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             }
         }
 
-        public override void HighlightNodeGraphics(IEnumerable<NodeModel> nodes)
+        public override void HighlightNodeGraphics(IEnumerable<string> identifiers, System.Windows.Media.Color highlightColor)
         {
-            HighlightGraphicsOnOff(nodes, true);
+            HighlightGeometryOnOff(identifiers, highlightColor, true);
         }
 
-        public override void UnHighlightNodeGraphics(IEnumerable<NodeModel> nodes)
+        public override void UnHighlightNodeGraphics(IEnumerable<string> identifiers, System.Windows.Media.Color defaultColor)
         {
-            HighlightGraphicsOnOff(nodes, false);
+            HighlightGeometryOnOff(identifiers, defaultColor, false);
         }
 
-        private void HighlightGraphicsOnOff(IEnumerable<NodeModel> nodes, bool highlightOn)
+        private void HighlightGeometryOnOff(IEnumerable<string> identifiers, System.Windows.Media.Color highlightColor, bool highlightOn)
         {
-            foreach (var node in nodes)
+            foreach (var identifier in identifiers)
             {
-                var geometries = FindAllGeometryModel3DsForNode(node.AstIdentifierBase);
+                var geometries = FindAllGeometryModel3DsForNode(identifier);
                 foreach (var geometry in geometries)
                 {
-                    var pointGeom = geometry.Value as PointGeometryModel3D;
-                    
-                    if (pointGeom == null) continue;
-                    
-                    var points = pointGeom.Geometry;
-                    points.Colors.Clear();
-                    
-                    points.Colors.AddRange(highlightOn
-                        ? Enumerable.Repeat(highlightColor, points.Positions.Count)
-                        : Enumerable.Repeat(defaultPointColor, points.Positions.Count));
+                    var geomModel3D = geometry.Value;
 
-                    pointGeom.Size = highlightOn ? highlightSize : defaultPointSize;
+                    var hlColor = new Color3(Convert.ToSingle(highlightColor.R), Convert.ToSingle(highlightColor.G),
+                            Convert.ToSingle(highlightColor.B));
+                    var alpha = Convert.ToSingle(highlightColor.A);
 
-                    pointGeom.Detach();
-                    OnRequestAttachToScene(pointGeom);
+                    if (geomModel3D is PointGeometryModel3D)
+                    {
+                        var pointGeom = geomModel3D as PointGeometryModel3D;
+                        var points = pointGeom.Geometry;
+                        points.Colors.Clear();
+
+                        points.Colors.AddRange(Enumerable.Repeat(new Color4(hlColor, alpha), points.Positions.Count));
+                        
+
+                        //pointGeom.Size = highlightOn ? highlightSize : defaultPointSize;
+                    }
+                    else if (geomModel3D is LineGeometryModel3D)
+                    {
+                        var lineGeom = geomModel3D as LineGeometryModel3D;
+                        var lines = lineGeom.Geometry;
+                        lines.Colors.Clear();
+
+                        lines.Colors.AddRange(Enumerable.Repeat(new Color4(hlColor, alpha), lines.Positions.Count));
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    geomModel3D.Detach();
+                    OnRequestAttachToScene(geomModel3D);
                 }
             }
         }
@@ -1526,7 +1552,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         /// to the camera plane. The camera's far clip plane is set to 2 * dfar, and the camera's 
         /// near clip plane is set to nearPlaneDistanceFactor * dnear
         /// </summary>
-        internal static void ComputeClipPlaneDistances(Vector3 cameraPosition, Vector3 cameraLook, IEnumerable<Model3D> geometry, 
+        internal static void ComputeClipPlaneDistances(Vector3 cameraPosition, Vector3 cameraLook, IEnumerable<Model3D> geometry,
             double nearPlaneDistanceFactor, out double near, out double far, double defaultNearClipDistance, double defaultFarClipDistance)
         {
             near = defaultNearClipDistance;
@@ -1535,7 +1561,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             var validGeometry = geometry.Where(i => i is GeometryModel3D).ToArray();
             if (!validGeometry.Any()) return;
 
-            var bounds = validGeometry.Cast<GeometryModel3D>().Select(g=>g.Bounds());
+            var bounds = validGeometry.Cast<GeometryModel3D>().Select(g => g.Bounds());
 
             // See http://mathworld.wolfram.com/Point-PlaneDistance.html
             // The plane distance formula will return positive values for points on the same side of the plane
@@ -1659,12 +1685,12 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
                 tw.WriteLine("solid {0}", model.CurrentWorkspace.Name);
                 foreach (var g in geoms)
                 {
-                    var n = ((MeshGeometry3D) g.Geometry).Normals.ToList();
+                    var n = ((MeshGeometry3D)g.Geometry).Normals.ToList();
                     var t = ((MeshGeometry3D)g.Geometry).Triangles.ToList();
 
-                    for (var i = 0; i < t.Count(); i ++)
+                    for (var i = 0; i < t.Count(); i++)
                     {
-                        var nCount = i*3;
+                        var nCount = i * 3;
                         tw.WriteLine("\tfacet normal {0} {1} {2}", n[nCount].X, n[nCount].Y, n[nCount].Z);
                         tw.WriteLine("\t\touter loop");
                         tw.WriteLine("\t\t\tvertex {0} {1} {2}", t[i].P0.X, t[i].P0.Y, t[i].P0.Z);
@@ -1728,8 +1754,8 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
                 return result;
             }
 
-            var transA = (bool) a.GetValue(AttachedProperties.HasTransparencyProperty);
-            var transB = (bool) b.GetValue(AttachedProperties.HasTransparencyProperty);
+            var transA = (bool)a.GetValue(AttachedProperties.HasTransparencyProperty);
+            var transB = (bool)b.GetValue(AttachedProperties.HasTransparencyProperty);
             result = transA.CompareTo(transB);
 
             if (result != 0 || !transA) return result;
@@ -1737,8 +1763,8 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             // compare distance
             var boundsA = a.Bounds;
             var boundsB = b.Bounds;
-            var cpA = (boundsA.Maximum + boundsA.Minimum)/2;
-            var cpB = (boundsB.Maximum + boundsB.Minimum)/2;
+            var cpA = (boundsA.Maximum + boundsA.Minimum) / 2;
+            var cpB = (boundsB.Maximum + boundsB.Minimum) / 2;
             var dA = Vector3.DistanceSquared(cpA, cameraPosition);
             var dB = Vector3.DistanceSquared(cpB, cameraPosition);
             return -dA.CompareTo(dB);
@@ -1808,7 +1834,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
 
         public static Vector3 Center(this BoundingBox bounds)
         {
-            return (bounds.Maximum + bounds.Minimum)/2;
+            return (bounds.Maximum + bounds.Minimum) / 2;
         }
 
     }

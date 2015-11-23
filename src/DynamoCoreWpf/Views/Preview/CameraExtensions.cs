@@ -59,7 +59,7 @@ namespace Dynamo.Controls
                     var pos = Vector3.TransformCoordinate(camera.Position.ToVector3(), worldToModelMatrix);
                     return new Ray(pos, r);
                 }
-                else if (camera is OrthographicCamera)
+                if (camera is OrthographicCamera)
                 {
                     return new Ray(zn, r);
                 }
