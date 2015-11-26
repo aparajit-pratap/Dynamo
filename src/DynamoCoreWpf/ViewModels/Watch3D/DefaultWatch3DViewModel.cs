@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using System.Xml;
 using Autodesk.DesignScript.Interfaces;
 using Dynamo.Core;
@@ -543,6 +544,19 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         public IRay GetClickRay(MouseEventArgs args)
         {
             return RequestClickRay != null ? RequestClickRay(args) : null;
+        }
+
+        internal event Func<MouseEventArgs, Point3D, Matrix3D> RequestScreenProjectionMatrix;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public Matrix3D? GetScreenProjectionMatrix(MouseEventArgs mouseEventArgs, Point3D point3D)
+        {
+            var handler = RequestScreenProjectionMatrix;
+            if (handler != null) return handler(mouseEventArgs, point3D);
+            return null;
         }
 
         public event Action<object, MouseButtonEventArgs> ViewMouseDown;

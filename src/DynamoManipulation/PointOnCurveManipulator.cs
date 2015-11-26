@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Geometry;
 using Dynamo.Graph.Nodes;
 using Dynamo.Graph.Nodes.ZeroTouch;
@@ -138,6 +139,11 @@ namespace Dynamo.Manipulation
             }
 
             return newPosition;
+        }
+
+        protected override void CheckMouseOver(MouseEventArgs mouseEventArgs)
+        {
+             
         }
 
         #endregion

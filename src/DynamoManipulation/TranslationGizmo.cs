@@ -170,7 +170,6 @@ namespace Dynamo.Manipulation
             
             scale = size;
             Origin = origin;
-            var col = Convert.ToByte(255);
 
             axes.Add(axis1);
             if (axis2 != null)

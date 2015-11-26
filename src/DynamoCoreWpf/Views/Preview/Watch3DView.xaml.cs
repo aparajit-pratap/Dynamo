@@ -60,11 +60,14 @@ namespace Dynamo.Controls
 
             if (ViewModel == null) return;
 
+            UnRegisterViewEventHandlers();
+
             ViewModel.RequestAttachToScene -= ViewModelRequestAttachToSceneHandler;
             ViewModel.RequestCreateModels -= RequestCreateModelsHandler;
             ViewModel.RequestViewRefresh -= RequestViewRefreshHandler;
             ViewModel.RequestClickRay -= GetClickRay;
             ViewModel.RequestZoomToFit -= ViewModel_RequestZoomToFit;
+            ViewModel.RequestScreenProjectionMatrix -= GetScreenProjectionMatrix;
         }
 
         private void RegisterButtonHandlers()
@@ -91,6 +94,14 @@ namespace Dynamo.Controls
             {
                 ViewModel.OnViewMouseMove(sender, args);
             };
+            
+        }
+
+        private void UnRegisterViewEventHandlers()
+        {
+            watch_view.MouseDown -= ViewModel.OnViewMouseDown;
+            watch_view.MouseUp -= ViewModel.OnViewMouseUp;
+            watch_view.MouseMove -= ViewModel.OnViewMouseMove;
         }
 
         private void UnregisterButtonHandlers()
@@ -127,6 +138,8 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh += RequestViewRefreshHandler;
             ViewModel.RequestClickRay += GetClickRay;
             ViewModel.RequestZoomToFit += ViewModel_RequestZoomToFit;
+            ViewModel.RequestScreenProjectionMatrix += GetScreenProjectionMatrix;
+            
         }
 
         private void ViewModel_RequestZoomToFit(BoundingBox bounds)
@@ -220,6 +233,12 @@ namespace Dynamo.Controls
             if (pt3D == null) return null;
 
             return new Ray3(ray.Origin, ray.Direction);
+        }
+
+        private Matrix3D GetScreenProjectionMatrix(MouseEventArgs mouseEventArgs, Point3D point3D)
+        {
+            Point mousePos = mouseEventArgs.GetPosition(this);
+            return View.GetScreenProjectionMatrix(mousePos, point3D);
         }
     }
 

@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Windows.Media.Media3D;
+using Dynamo.Utilities;
 using Dynamo.Wpf.ViewModels.Watch3D;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using OrthographicCamera = HelixToolkit.Wpf.SharpDX.OrthographicCamera;
 using PerspectiveCamera = HelixToolkit.Wpf.SharpDX.PerspectiveCamera;
+using Point = System.Windows.Point;
 using ProjectionCamera = HelixToolkit.Wpf.SharpDX.ProjectionCamera;
 
 namespace Dynamo.Controls
@@ -59,7 +61,7 @@ namespace Dynamo.Controls
                     var pos = Vector3.TransformCoordinate(camera.Position.ToVector3(), worldToModelMatrix);
                     return new Ray(pos, r);
                 }
-                else if (camera is OrthographicCamera)
+                if (camera is OrthographicCamera)
                 {
                     return new Ray(zn, r);
                 }
@@ -67,10 +69,22 @@ namespace Dynamo.Controls
             throw new HelixToolkitException("Unproject camera error.");
         }
 
-        internal static Ray3D Point2DToRay3D(this Viewport3DX viewport, System.Windows.Point point2d)
+        internal static Ray3D Point2DToRay3D(this Viewport3DX viewport, Point point2d)
         {
             var r = viewport.Point2DToRay(point2d.ToVector2());
             return new Ray3D(r.Position.ToPoint3D(), r.Direction.ToVector3D());
+        }
+
+        internal static Matrix3D GetScreenProjectionMatrix(this Viewport3DX viewport, Point mousePos, Point3D point3D)
+        {
+            var modelToWorldMatrix = WorldToModelMatrix();
+            modelToWorldMatrix.Invert();
+
+            var vp = viewport.GetScreenViewProjectionMatrix();
+            var matrix = Matrix3D.Multiply(modelToWorldMatrix.ToMatrix3D(), vp.ToMatrix3D());
+            var screenPt = Point3D.Multiply(point3D, matrix);
+
+            return matrix;
         }
     }
 

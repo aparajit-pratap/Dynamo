@@ -61,6 +61,12 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         IRay GetClickRay(MouseEventArgs args);
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        Matrix3D? GetScreenProjectionMatrix(MouseEventArgs mouseEventArgs, Point3D point3D);
+
+        /// <summary>
         /// Returns information about camera position in background 3D preview
         /// </summary>
         /// <returns>Information about camera position</returns>
