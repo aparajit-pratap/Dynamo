@@ -67,7 +67,7 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh -= RequestViewRefreshHandler;
             ViewModel.RequestClickRay -= GetClickRay;
             ViewModel.RequestZoomToFit -= ViewModel_RequestZoomToFit;
-            ViewModel.RequestScreenProjectionMatrix -= GetScreenProjectionMatrix;
+            ViewModel.RequestScreenPositions -= GetScreenPositions;
         }
 
         private void RegisterButtonHandlers()
@@ -138,7 +138,7 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh += RequestViewRefreshHandler;
             ViewModel.RequestClickRay += GetClickRay;
             ViewModel.RequestZoomToFit += ViewModel_RequestZoomToFit;
-            ViewModel.RequestScreenProjectionMatrix += GetScreenProjectionMatrix;
+            ViewModel.RequestScreenPositions += GetScreenPositions;
             
         }
 
@@ -235,10 +235,10 @@ namespace Dynamo.Controls
             return new Ray3(ray.Origin, ray.Direction);
         }
 
-        private Matrix3D GetScreenProjectionMatrix(MouseEventArgs mouseEventArgs, Point3D point3D)
+        private IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points)
         {
             Point mousePos = mouseEventArgs.GetPosition(this);
-            return View.GetScreenProjectionMatrix(mousePos, point3D);
+            return points.Select(point => View.GetScreenPosition(point)).ToList();
         }
     }
 

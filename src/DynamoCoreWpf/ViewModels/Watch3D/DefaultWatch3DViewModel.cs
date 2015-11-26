@@ -546,15 +546,15 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             return RequestClickRay != null ? RequestClickRay(args) : null;
         }
 
-        internal event Func<MouseEventArgs, Point3D, Matrix3D> RequestScreenProjectionMatrix;
+        internal event Func<MouseEventArgs, IEnumerable<Point3D>, IEnumerable<Point3D>> RequestScreenPositions;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public Matrix3D? GetScreenProjectionMatrix(MouseEventArgs mouseEventArgs, Point3D point3D)
+        public IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> point3D)
         {
-            var handler = RequestScreenProjectionMatrix;
+            var handler = RequestScreenPositions;
             if (handler != null) return handler(mouseEventArgs, point3D);
             return null;
         }

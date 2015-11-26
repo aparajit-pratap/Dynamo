@@ -100,7 +100,7 @@ namespace Dynamo.Manipulation
         /// <returns>New expected position of the Gizmo</returns>
         protected abstract Point OnGizmoMoved(IGizmo gizmo, Vector offset);
 
-        protected abstract void CheckMouseOver(MouseEventArgs mouseEventArgs);
+        //protected abstract void CheckMouseOver(MouseEventArgs mouseEventArgs);
 
         #endregion
 
@@ -190,7 +190,7 @@ namespace Dynamo.Manipulation
             if (GizmoInAction == null)
             {
                 // Check for mouse over highlights on gizmo
-                CheckMouseOver(mouseEventArgs);
+                //CheckMouseOver(mouseEventArgs);
             }
 
             if (!CanMoveGizmo(GizmoInAction))
@@ -481,6 +481,10 @@ namespace Dynamo.Manipulation
 
     internal static class PointExtensions
     {
+        public static Point3D ToPoint3D(Point point)
+        {
+            return new Point3D(point.X, point.Y, point.Z);
+        }
         public static Point ToPoint(this Point3D point)
         {
             return Point.ByCoordinates(point.X, point.Y, point.Z);

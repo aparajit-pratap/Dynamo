@@ -221,10 +221,11 @@ namespace Dynamo.Manipulation
             Active = true;
         }
 
-        protected override void CheckMouseOver(MouseEventArgs mouseEventArgs)
-        {
-            var matrix = BackgroundPreviewViewModel.GetScreenProjectionMatrix(mouseEventArgs, new Point3D(origin.X, origin.Y, origin.Z));
-        }
+        //protected override void CheckMouseOver(MouseEventArgs mouseEventArgs)
+        //{
+        //    var matrix = BackgroundPreviewViewModel.GetScreenPositions(
+        //        mouseEventArgs, new Point3D(origin.X, origin.Y, origin.Z));
+        //}
 
         #endregion
 

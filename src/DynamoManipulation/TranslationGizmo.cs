@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Geometry;
 using Autodesk.DesignScript.Interfaces;
 using Dynamo.Visualization;
@@ -84,12 +86,12 @@ namespace Dynamo.Manipulation
         /// <summary>
         /// List of axis available for manipulation
         /// </summary>
-        private List<Vector> axes = new List<Vector>();
+        private readonly List<Vector> axes = new List<Vector>();
 
         /// <summary>
         /// List of planes available for manipulation
         /// </summary>
-        private List<Plane> planes = new List<Plane>();
+        private readonly List<Plane> planes = new List<Plane>();
 
         /// <summary>
         /// Scale to draw the gizmo
@@ -101,6 +103,9 @@ namespace Dynamo.Manipulation
         /// </summary>
         private Vector hitAxis = null;
         private Plane hitPlane = null;
+
+        private readonly List<Line> screenAxes = new List<Line>(); 
+        private readonly List<Plane> screenPlanes = new List<Plane>();
 
         /// <summary>
         /// Name of the gizmo.
@@ -423,6 +428,30 @@ namespace Dynamo.Manipulation
                 drawables.Add(package);
             }
             return drawables;
+        }
+
+        public void GetScreenGeometry(IWatch3DViewModel backgroundPreviewViewModel, MouseEventArgs mouseEventArgs)
+        {
+            var points = new List<Point3D>
+            {
+                PointExtensions.ToPoint3D(Origin)
+            };
+            points.AddRange(axes.Select(axis => Origin.Add(axis)).Select(PointExtensions.ToPoint3D));
+
+            foreach (var plane in planes)
+            {
+                var planeAxisPoint1 = Origin.Add(plane.XAxis);
+                var planeDiagonalPoint = Origin.Add(plane.XAxis.Add(plane.YAxis));
+                var planeAxisPoint2 = Origin.Add(plane.YAxis);
+
+                points.AddRange(new[]
+                {
+                    PointExtensions.ToPoint3D(planeAxisPoint1), PointExtensions.ToPoint3D(planeDiagonalPoint),
+                    PointExtensions.ToPoint3D(planeAxisPoint2)
+                });
+            }
+            var screenPositions = backgroundPreviewViewModel.GetScreenPositions(
+                mouseEventArgs, points);
         }
 
         #endregion
