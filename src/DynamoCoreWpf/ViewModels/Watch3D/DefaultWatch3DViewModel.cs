@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -546,16 +547,19 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             return RequestClickRay != null ? RequestClickRay(args) : null;
         }
 
-        internal event Func<MouseEventArgs, IEnumerable<Point3D>, IEnumerable<Point3D>> RequestScreenPositions;
+        internal delegate IEnumerable<Point3D> RequestScreenPositionsDelegate(
+            MouseEventArgs args, IEnumerable<Point3D> points, out Point? mousePos);
+        internal event RequestScreenPositionsDelegate RequestScreenPositions;
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> point3D)
+        public IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points, out Point? mousePosition)
         {
             var handler = RequestScreenPositions;
-            if (handler != null) return handler(mouseEventArgs, point3D);
+            if (handler != null) return handler(mouseEventArgs, points, out mousePosition);
+            mousePosition = null;
             return null;
         }
 

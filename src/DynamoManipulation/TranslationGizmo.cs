@@ -104,8 +104,8 @@ namespace Dynamo.Manipulation
         private Vector hitAxis = null;
         private Plane hitPlane = null;
 
-        private readonly List<Line> screenAxes = new List<Line>(); 
-        private readonly List<Plane> screenPlanes = new List<Plane>();
+        private List<Vector> screenAxes;
+        private List<Polygon> screenPlanes;
 
         /// <summary>
         /// Name of the gizmo.
@@ -440,9 +440,9 @@ namespace Dynamo.Manipulation
 
             foreach (var plane in planes)
             {
-                var planeAxisPoint1 = Origin.Add(plane.XAxis);
-                var planeDiagonalPoint = Origin.Add(plane.XAxis.Add(plane.YAxis));
-                var planeAxisPoint2 = Origin.Add(plane.YAxis);
+                var planeAxisPoint1 = Origin.Add(plane.XAxis.Scale(scale/2));
+                var planeDiagonalPoint = planeAxisPoint1.Add(plane.YAxis.Scale(scale/2));
+                var planeAxisPoint2 = Origin.Add(plane.YAxis.Scale(scale/2));
 
                 points.AddRange(new[]
                 {
@@ -450,9 +450,34 @@ namespace Dynamo.Manipulation
                     PointExtensions.ToPoint3D(planeAxisPoint2)
                 });
             }
+            System.Windows.Point? mousePos;
             var screenPositions = backgroundPreviewViewModel.GetScreenPositions(
-                mouseEventArgs, points);
+                mouseEventArgs, points, out mousePos).ToList();
+
+            UpdateScreenGeometry(screenPositions);
         }
+
+        private void UpdateScreenGeometry(List<Point3D> screenPositions)
+        {
+            var screenOrigin = screenPositions[0].ToPoint();
+            screenAxes = new List<Vector>();
+            for (int i = 0; i < axes.Count; i++)
+            {
+                var axisEndPt = screenPositions[i].ToPoint();
+                screenAxes.Add(Vector.ByTwoPoints(screenOrigin, axisEndPt));
+            }
+
+            int count = axes.Count;
+            screenPlanes = new List<Polygon>();
+            for (int i = 0; i < planes.Count; i++)
+            {
+                var pt1 = screenPositions[count++].ToPoint();
+                var pt2 = screenPositions[count++].ToPoint();
+                var pt3 = screenPositions[count++].ToPoint();
+                screenPlanes.Add(Polygon.ByPoints(new[] {screenOrigin, pt1, pt2, pt3}));
+            }
+        }
+
 
         #endregion
 

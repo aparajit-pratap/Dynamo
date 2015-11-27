@@ -191,6 +191,11 @@ namespace Dynamo.Manipulation
             {
                 // Check for mouse over highlights on gizmo
                 //CheckMouseOver(mouseEventArgs);
+                var gizmos = GetGizmos(false);
+                foreach (var gizmo in gizmos)
+                {
+                    
+                }
             }
 
             if (!CanMoveGizmo(GizmoInAction))

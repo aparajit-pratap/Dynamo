@@ -235,10 +235,11 @@ namespace Dynamo.Controls
             return new Ray3(ray.Origin, ray.Direction);
         }
 
-        private IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points)
+        private IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points, out Point? mousePosition)
         {
             Point mousePos = mouseEventArgs.GetPosition(this);
-            return points.Select(point => View.GetScreenPosition(point)).ToList();
+            mousePosition = new Point(mousePos.X, mousePos.Y);
+            return View.GetScreenPosition(points);
         }
     }
 

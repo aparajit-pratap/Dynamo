@@ -75,16 +75,15 @@ namespace Dynamo.Controls
             return new Ray3D(r.Position.ToPoint3D(), r.Direction.ToVector3D());
         }
 
-        internal static Point3D GetScreenPosition(this Viewport3DX viewport, Point3D point3D)
+        internal static IEnumerable<Point3D> GetScreenPosition(this Viewport3DX viewport, IEnumerable<Point3D> points)
         {
             var modelToWorldMatrix = WorldToModelMatrix();
             modelToWorldMatrix.Invert();
 
             var vp = viewport.GetScreenViewProjectionMatrix();
             var matrix = Matrix3D.Multiply(modelToWorldMatrix.ToMatrix3D(), vp.ToMatrix3D());
-            var screenPt = Point3D.Multiply(point3D, matrix);
 
-            return screenPt;
+            return points.Select(point => Point3D.Multiply(point, matrix)).ToList();
         }
     }
 

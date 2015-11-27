@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Interfaces;
@@ -64,7 +65,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         /// 
         /// </summary>
         /// <returns></returns>
-        IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> point3D);
+        IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> point3D, out Point? mousePosition);
 
         /// <summary>
         /// Returns information about camera position in background 3D preview

@@ -1170,6 +1170,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
                         baseId = baseId.Split(':')[0];
                     }
                     var id = baseId;
+
                     //If this render package belongs to special render package, then create
                     //and update the corresponding GeometryModel. Sepcial renderpackage are
                     //defined based on its description containing one of the constants from
