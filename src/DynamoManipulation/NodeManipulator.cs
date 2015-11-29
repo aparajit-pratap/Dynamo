@@ -377,11 +377,6 @@ namespace Dynamo.Manipulation
         private void DrawManipulator()
         {
             var packages = GenerateRenderPackages();
-            //var gizmos = GetGizmos(false);
-            //foreach (var gizmo in gizmos)
-            //{
-            //    gizmo.GetScreenViewProjectionMatrix(BackgroundPreviewViewModel);
-            //}
 
             BackgroundPreviewViewModel.AddGeometryForRenderPackages(packages);
         }
