@@ -33,7 +33,7 @@ namespace Dynamo.Controls
             {
                 var p = new Vector3(point2D.X, point2D.Y, 1);
 
-                var vp = viewport.GetScreenViewProjectionMatrix();
+                var vp = ViewportExtensions.GetScreenViewProjectionMatrix(viewport);
                 var vpi = Matrix.Invert(vp);
 
                 var test = 1f / ((p.X * vpi.M14) + (p.Y * vpi.M24) + (p.Z * vpi.M34) + vpi.M44);
@@ -75,15 +75,16 @@ namespace Dynamo.Controls
             return new Ray3D(r.Position.ToPoint3D(), r.Direction.ToVector3D());
         }
 
-        internal static IEnumerable<Point3D> GetScreenPosition(this Viewport3DX viewport, IEnumerable<Point3D> points)
+        internal static Matrix3D GetScreenViewProjectionMatrix(this Viewport3DX viewport)
         {
             var modelToWorldMatrix = WorldToModelMatrix();
             modelToWorldMatrix.Invert();
 
-            var vp = viewport.GetScreenViewProjectionMatrix();
+            var vp = ViewportExtensions.GetScreenViewProjectionMatrix(viewport);
             var matrix = Matrix3D.Multiply(modelToWorldMatrix.ToMatrix3D(), vp.ToMatrix3D());
+            return matrix;
 
-            return points.Select(point => Point3D.Multiply(point, matrix)).ToList();
+            //return points.Select(point => Point3D.Multiply(point, matrix)).ToList();
         }
     }
 

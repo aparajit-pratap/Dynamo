@@ -67,7 +67,8 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh -= RequestViewRefreshHandler;
             ViewModel.RequestClickRay -= GetClickRay;
             ViewModel.RequestZoomToFit -= ViewModel_RequestZoomToFit;
-            ViewModel.RequestScreenPositions -= GetScreenPositions;
+            ViewModel.RequestScreenViewProjectionMatrix -= GetScreenViewProjectionMatrix;
+            ViewModel.RequestMousePosition -= GetMousePosition;
         }
 
         private void RegisterButtonHandlers()
@@ -94,6 +95,11 @@ namespace Dynamo.Controls
             {
                 ViewModel.OnViewMouseMove(sender, args);
             };
+
+            watch_view.CameraChanged += (sender, args) =>
+            {
+                ViewModel.OnViewCameraChanged(sender, args);
+            };
             
         }
 
@@ -102,6 +108,7 @@ namespace Dynamo.Controls
             watch_view.MouseDown -= ViewModel.OnViewMouseDown;
             watch_view.MouseUp -= ViewModel.OnViewMouseUp;
             watch_view.MouseMove -= ViewModel.OnViewMouseMove;
+            watch_view.CameraChanged -= ViewModel.OnViewCameraChanged;
         }
 
         private void UnregisterButtonHandlers()
@@ -138,8 +145,8 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh += RequestViewRefreshHandler;
             ViewModel.RequestClickRay += GetClickRay;
             ViewModel.RequestZoomToFit += ViewModel_RequestZoomToFit;
-            ViewModel.RequestScreenPositions += GetScreenPositions;
-            
+            ViewModel.RequestScreenViewProjectionMatrix += GetScreenViewProjectionMatrix;
+            ViewModel.RequestMousePosition += GetMousePosition;
         }
 
         private void ViewModel_RequestZoomToFit(BoundingBox bounds)
@@ -220,9 +227,7 @@ namespace Dynamo.Controls
 
         private IRay GetClickRay(MouseEventArgs args)
         {
-            var mousePos = args.GetPosition(this);
-
-            var ray = View.Point2DToRay3D(new Point(mousePos.X, mousePos.Y));
+            var ray = View.Point2DToRay3D(GetMousePosition(args));
 
             if (ray == null) return null;
 
@@ -235,11 +240,15 @@ namespace Dynamo.Controls
             return new Ray3(ray.Origin, ray.Direction);
         }
 
-        private IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points, out Point? mousePosition)
+        private Matrix3D GetScreenViewProjectionMatrix()
         {
-            Point mousePos = mouseEventArgs.GetPosition(this);
-            mousePosition = new Point(mousePos.X, mousePos.Y);
-            return View.GetScreenPosition(points);
+            return View.GetScreenViewProjectionMatrix();
+        }
+
+        private Point GetMousePosition(MouseEventArgs args)
+        {
+            var mousePos = args.GetPosition(this);
+            return new Point(mousePos.X, mousePos.Y);
         }
     }
 

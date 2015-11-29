@@ -65,7 +65,14 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         /// 
         /// </summary>
         /// <returns></returns>
-        IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> point3D, out Point? mousePosition);
+        Matrix3D? GetScreenViewProjectionMatrix();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        Point? GetMousePosition(MouseEventArgs args);
 
         /// <summary>
         /// Returns information about camera position in background 3D preview
@@ -116,6 +123,11 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         /// Event to be handled for a mouse move event in the Watch view
         /// </summary>
         event Action<object, MouseEventArgs> ViewMouseMove;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        event Action<object, RoutedEventArgs> ViewCameraChanged;
 
         /// <summary>
         /// Event to be handled when the background preview is toggled on or off

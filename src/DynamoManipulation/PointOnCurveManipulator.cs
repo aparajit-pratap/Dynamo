@@ -141,11 +141,6 @@ namespace Dynamo.Manipulation
             return newPosition;
         }
 
-        //protected override void CheckMouseOver(MouseEventArgs mouseEventArgs)
-        //{
-             
-        //}
-
         #endregion
     }
 }

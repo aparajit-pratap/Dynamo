@@ -547,19 +547,31 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             return RequestClickRay != null ? RequestClickRay(args) : null;
         }
 
-        internal delegate IEnumerable<Point3D> RequestScreenPositionsDelegate(
-            MouseEventArgs args, IEnumerable<Point3D> points, out Point? mousePos);
-        internal event RequestScreenPositionsDelegate RequestScreenPositions;
-
+        internal event Func<Matrix3D> RequestScreenViewProjectionMatrix;
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<Point3D> GetScreenPositions(MouseEventArgs mouseEventArgs, IEnumerable<Point3D> points, out Point? mousePosition)
+        public Matrix3D? GetScreenViewProjectionMatrix()
         {
-            var handler = RequestScreenPositions;
-            if (handler != null) return handler(mouseEventArgs, points, out mousePosition);
-            mousePosition = null;
+            var handler = RequestScreenViewProjectionMatrix;
+            if (handler != null)
+            {
+                return handler();
+            }
+            return null;
+        }
+
+        internal event Func<MouseEventArgs, Point> RequestMousePosition;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public Point? GetMousePosition(MouseEventArgs args)
+        {
+            var handler = RequestMousePosition;
+            if (handler != null) return handler(args);
             return null;
         }
 
@@ -582,6 +594,13 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         {
             var handler = ViewMouseMove;
             if (handler != null) handler(sender, e);
+        }
+
+        public event Action<object, RoutedEventArgs> ViewCameraChanged;
+        internal void OnViewCameraChanged(object sender, RoutedEventArgs args)
+        {
+            var handler = ViewCameraChanged;
+            if (handler != null) handler(sender, args);
         }
 
 

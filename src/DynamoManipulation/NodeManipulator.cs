@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Geometry;
@@ -13,6 +14,8 @@ using Dynamo.Models;
 using Dynamo.Visualization;
 using Dynamo.Wpf.ViewModels.Watch3D;
 using ProtoCore.Mirror;
+using Point = Autodesk.DesignScript.Geometry.Point;
+using Vector = Autodesk.DesignScript.Geometry.Vector;
 
 namespace Dynamo.Manipulation
 {
@@ -39,6 +42,7 @@ namespace Dynamo.Manipulation
         private const double NewNodeOffsetX = 350;
         private const double NewNodeOffsetY = 50;
         private Point newPosition;
+        private Matrix3D? matrix;
 
         protected NodeModel Node { get; set; }
 
@@ -99,8 +103,6 @@ namespace Dynamo.Manipulation
         /// <param name="offset">Offset amount by which Gizmo has moved.</param>
         /// <returns>New expected position of the Gizmo</returns>
         protected abstract Point OnGizmoMoved(IGizmo gizmo, Vector offset);
-
-        //protected abstract void CheckMouseOver(MouseEventArgs mouseEventArgs);
 
         #endregion
 
@@ -190,11 +192,22 @@ namespace Dynamo.Manipulation
             if (GizmoInAction == null)
             {
                 // Check for mouse over highlights on gizmo
-                //CheckMouseOver(mouseEventArgs);
                 var gizmos = GetGizmos(false);
+                var mousePos = BackgroundPreviewViewModel.GetMousePosition(mouseEventArgs);
+
                 foreach (var gizmo in gizmos)
                 {
-                    
+                    // Unhighlight all drawables for gizmo (redraw gizmo)
+                    // Delete all transient axis line geometry
+                    BackgroundPreviewViewModel.DeleteGeometryForIdentifier(RenderDescriptions.AxisLine);
+
+                    if (mousePos == null) continue;
+                        
+                    var drawableId = gizmo.HitTestWithScreenCoordinates(mousePos.Value);
+                    if (drawableId != null)
+                    {
+                        // There is a mouseover hit with a gizmo drawable, highlight it
+                    }
                 }
             }
 
@@ -227,6 +240,8 @@ namespace Dynamo.Manipulation
             ExtensionName = manipulatorContext.Name;
                 
             AttachBaseHandlers();
+
+            matrix = BackgroundPreviewViewModel.GetScreenViewProjectionMatrix();
 
             DrawManipulator();
         }
@@ -362,6 +377,11 @@ namespace Dynamo.Manipulation
         private void DrawManipulator()
         {
             var packages = GenerateRenderPackages();
+            //var gizmos = GetGizmos(false);
+            //foreach (var gizmo in gizmos)
+            //{
+            //    gizmo.GetScreenViewProjectionMatrix(BackgroundPreviewViewModel);
+            //}
 
             BackgroundPreviewViewModel.AddGeometryForRenderPackages(packages);
         }
@@ -374,8 +394,14 @@ namespace Dynamo.Manipulation
             BackgroundPreviewViewModel.ViewMouseMove += MouseMove;
             BackgroundPreviewViewModel.ViewMouseDown += MouseDown;
             BackgroundPreviewViewModel.ViewMouseUp += MouseUp;
+            BackgroundPreviewViewModel.ViewCameraChanged += OnViewCameraChanged;
 
             Node.RequestRenderPackages += GenerateRenderPackages;
+        }
+
+        private void OnViewCameraChanged(object o, RoutedEventArgs routedEventArgs)
+        {
+            matrix = BackgroundPreviewViewModel.GetScreenViewProjectionMatrix();
         }
 
         /// <summary>
@@ -449,6 +475,8 @@ namespace Dynamo.Manipulation
                     item.Name = string.Format("{0}_{1}", item.Name, Node.AstIdentifierBase);
                 }
                 packages.AddRange(item.GetDrawables(RenderPackageFactory));
+
+                item.UpdateScreenCoordinatesForDrawables(matrix.Value);
             }
 
             return packages;

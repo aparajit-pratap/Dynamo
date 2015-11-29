@@ -53,6 +53,10 @@ namespace Dynamo.Manipulation
         /// <param name="factory">Render package factory</param>
         /// <returns>List of render packages.</returns>
         IEnumerable<IRenderPackage> GetDrawables(IRenderPackageFactory factory);
+
+        void UpdateScreenCoordinatesForDrawables(Matrix3D matrix);
+
+        string HitTestWithScreenCoordinates(System.Windows.Point mousePosition);
     }
 
     /// <summary>
@@ -104,8 +108,10 @@ namespace Dynamo.Manipulation
         private Vector hitAxis = null;
         private Plane hitPlane = null;
 
-        private List<Vector> screenAxes;
-        private List<Polygon> screenPlanes;
+        private Point screenOrigin;
+        private Dictionary<int, Line> screenAxes;
+        private Dictionary<int, Polygon> screenPlanes;
+        private Matrix3D? matrix;
 
         /// <summary>
         /// Name of the gizmo.
@@ -430,7 +436,77 @@ namespace Dynamo.Manipulation
             return drawables;
         }
 
-        public void GetScreenGeometry(IWatch3DViewModel backgroundPreviewViewModel, MouseEventArgs mouseEventArgs)
+        public void UpdateScreenCoordinatesForDrawables(Matrix3D matrix)
+        {
+            var positions = GetPositionsForDrawables();
+            var screenPositions = positions.Select(point => Point3D.Multiply(point, matrix)).ToList();
+
+            UpdateScreenGeometry(screenPositions);
+        }
+
+        public string HitTestWithScreenCoordinates(System.Windows.Point mousePosition)
+        {
+            double tolerance = 0.15; //Hit tolerance
+
+            var mousePoint = Point.ByCoordinates(mousePosition.X, mousePosition.Y);
+            //First hit test for position
+            if (mousePoint.DistanceTo(screenOrigin) < tolerance)
+            {
+                if (screenPlanes.Any())
+                {
+                    switch (screenPlanes.FirstOrDefault().Key)
+                    {
+                        case 1:
+                            return "xyPlane";
+                        case 2:
+                            return "yzPlane";
+                        case 3:
+                            return "zxPlane";
+                    }
+                }
+                switch (screenAxes.FirstOrDefault().Key)
+                {
+                    case 1:
+                        return "xAxis";
+                    case 2:
+                        return "yAxis";
+                    case 3:
+                        return "zAxis";
+                }
+            }
+            foreach (var plane in screenPlanes)
+            {
+                if (!plane.Value.ContainmentTest(mousePoint)) continue;
+
+                switch (plane.Key)
+                {
+                    case 1:
+                        return "xyPlane";
+                    case 2:
+                        return "yzPlane";
+                    case 3:
+                        return "zxPlane";
+                }
+            }
+            
+            foreach (var axis in screenAxes)
+            {
+                if (!(axis.Value.DistanceTo(mousePoint) < tolerance)) continue;
+
+                switch (axis.Key)
+                {
+                    case 1:
+                        return "xAxis";
+                    case 2:
+                        return "yAxis";
+                    case 3:
+                        return "zAxis";
+                }
+            }
+            return null;
+        }
+
+        private List<Point3D> GetPositionsForDrawables()
         {
             var points = new List<Point3D>
             {
@@ -440,9 +516,9 @@ namespace Dynamo.Manipulation
 
             foreach (var plane in planes)
             {
-                var planeAxisPoint1 = Origin.Add(plane.XAxis.Scale(scale/2));
-                var planeDiagonalPoint = planeAxisPoint1.Add(plane.YAxis.Scale(scale/2));
-                var planeAxisPoint2 = Origin.Add(plane.YAxis.Scale(scale/2));
+                var planeAxisPoint1 = Origin.Add(plane.XAxis.Scale(scale / 2));
+                var planeDiagonalPoint = planeAxisPoint1.Add(plane.YAxis.Scale(scale / 2));
+                var planeAxisPoint2 = Origin.Add(plane.YAxis.Scale(scale / 2));
 
                 points.AddRange(new[]
                 {
@@ -450,31 +526,31 @@ namespace Dynamo.Manipulation
                     PointExtensions.ToPoint3D(planeAxisPoint2)
                 });
             }
-            System.Windows.Point? mousePos;
-            var screenPositions = backgroundPreviewViewModel.GetScreenPositions(
-                mouseEventArgs, points, out mousePos).ToList();
-
-            UpdateScreenGeometry(screenPositions);
+            return points;
         }
 
         private void UpdateScreenGeometry(List<Point3D> screenPositions)
         {
-            var screenOrigin = screenPositions[0].ToPoint();
-            screenAxes = new List<Vector>();
+            var tolerance = 0.01;
+            screenOrigin = screenPositions[0].ToPoint();
+            screenAxes = new Dictionary<int, Line>();
             for (int i = 0; i < axes.Count; i++)
             {
-                var axisEndPt = screenPositions[i].ToPoint();
-                screenAxes.Add(Vector.ByTwoPoints(screenOrigin, axisEndPt));
+                var axisEndPt = screenPositions[i+1].ToPoint();
+                if (screenOrigin.DistanceTo(axisEndPt) > tolerance)
+                {
+                    screenAxes.Add(i + 1, Line.ByStartPointEndPoint(screenOrigin, axisEndPt));
+                }
             }
 
-            int count = axes.Count;
-            screenPlanes = new List<Polygon>();
+            int count = axes.Count + 1;
+            screenPlanes = new Dictionary<int, Polygon>();
             for (int i = 0; i < planes.Count; i++)
             {
                 var pt1 = screenPositions[count++].ToPoint();
                 var pt2 = screenPositions[count++].ToPoint();
                 var pt3 = screenPositions[count++].ToPoint();
-                screenPlanes.Add(Polygon.ByPoints(new[] {screenOrigin, pt1, pt2, pt3}));
+                screenPlanes.Add(i + 1, Polygon.ByPoints(new[] {screenOrigin, pt1, pt2, pt3}));
             }
         }
 
