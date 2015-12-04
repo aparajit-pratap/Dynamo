@@ -127,6 +127,7 @@ namespace Dynamo.Controls
             ViewModel.RequestViewRefresh += RequestViewRefreshHandler;
             ViewModel.RequestClickRay += GetClickRay;
             ViewModel.RequestZoomToFit += ViewModel_RequestZoomToFit;
+            ViewModel.RequestRenderPackagesEvent += RequestRenderPackagesHandler;
         }
 
         private void ViewModel_RequestZoomToFit(BoundingBox bounds)
@@ -148,6 +149,20 @@ namespace Dynamo.Controls
             else
             {
                 Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() => ViewModel.GenerateViewGeometryFromRenderPackagesAndRequestUpdate(packages)));
+            }
+        }
+
+        private IEnumerable<IRenderPackage> RequestRenderPackagesHandler()
+        {
+            if (CheckAccess())
+            {
+                return ViewModel.OnRequestRenderPackages();
+            }
+            else
+            {
+                IEnumerable<IRenderPackage> result = null;
+                Dispatcher.Invoke(DispatcherPriority.Render, new Action(() => result = ViewModel.OnRequestRenderPackages()));
+                return result;
             }
         }
 

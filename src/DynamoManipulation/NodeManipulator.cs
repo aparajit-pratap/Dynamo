@@ -271,8 +271,10 @@ namespace Dynamo.Manipulation
                 if (val != null)
                 {
                     inputNode = val.Item2;
-                    if (val.Item2 is DSCoreNodesUI.Input.DoubleSlider)
+                    if (val.Item2 is DoubleSlider)
+                    {
                         manipulate = true;
+                    }
                 }
                 else
                 {
@@ -361,7 +363,8 @@ namespace Dynamo.Manipulation
             BackgroundPreviewViewModel.ViewMouseDown += MouseDown;
             BackgroundPreviewViewModel.ViewMouseUp += MouseUp;
 
-            Node.RequestRenderPackages += GenerateRenderPackages;
+            //Node.RequestRenderPackages += GenerateRenderPackages;
+            BackgroundPreviewViewModel.RequestRenderPackages += GenerateRenderPackages;
         }
 
         /// <summary>
@@ -373,9 +376,6 @@ namespace Dynamo.Manipulation
         /// <returns>List of render packages</returns>
         private IEnumerable<IRenderPackage> GenerateRenderPackages()
         {
-            // Currently collections are not being supported
-            //if(Node.CachedValue.IsCollection) return new List<IRenderPackage>();
-
             var packages = new List<IRenderPackage>();
 
             AssignInputNodes();
@@ -404,7 +404,8 @@ namespace Dynamo.Manipulation
             BackgroundPreviewViewModel.ViewMouseDown -= MouseDown;
             BackgroundPreviewViewModel.ViewMouseUp -= MouseUp;
 
-            Node.RequestRenderPackages -= GenerateRenderPackages;
+            //Node.RequestRenderPackages -= GenerateRenderPackages;
+            BackgroundPreviewViewModel.RequestRenderPackages -= GenerateRenderPackages;
         }
 
         #endregion

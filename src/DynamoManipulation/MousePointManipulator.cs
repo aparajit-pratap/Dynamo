@@ -203,8 +203,11 @@ namespace Dynamo.Manipulation
                 // method will decompose the axis corresponding to each input.
                 var v = GetFirstAxisComponent(item.Value.Item1);
                 var amount = Math.Round(offset.Dot(v), 3);
+
                 if (Math.Abs(amount) > 0.001)
+                {
                     ModifyInputNode(item.Value.Item2, amount);
+                }
             }
 
             return expectedPosition;
@@ -224,7 +227,8 @@ namespace Dynamo.Manipulation
             }
 
             // hack: to prevent node mirror value lookup from throwing an exception
-            var previousOrigin = Point.ByCoordinates(origin.X, origin.Y, origin.Z);
+            //var previousOrigin = Point.ByCoordinates(origin.X, origin.Y, origin.Z);
+            var previousOrigin = origin;
             try
             {
                 //Node output could be a collection, consider the first item as origin.

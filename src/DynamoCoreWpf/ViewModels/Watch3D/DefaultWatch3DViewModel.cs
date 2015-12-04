@@ -268,6 +268,28 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             RegisterWorkspaceEventHandlers(model);
         }
 
+        public event Func<IEnumerable<IRenderPackage>> RequestRenderPackages;
+        internal IEnumerable<IRenderPackage> OnRequestRenderPackages()
+        {
+            var handler = RequestRenderPackages;
+            if (handler != null)
+            {
+                return handler();
+            }
+            return null;
+        }
+
+        internal event Func<IEnumerable<IRenderPackage>> RequestRenderPackagesEvent;
+        private IEnumerable<IRenderPackage> RequestRenderPackagesHandler()
+        {
+            var handler = RequestRenderPackagesEvent;
+            if (handler != null)
+            {
+                return handler();
+            }
+            return null;
+        }
+
         /// <summary>
         /// Event to be handled when the background preview is toggled on or off
         /// On/off state is passed using the bool parameter
@@ -370,6 +392,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
                 {
                     node.PropertyChanged += OnNodePropertyChanged;
                     node.RenderPackagesUpdated += OnRenderPackagesUpdated;
+                    node.RequestRenderPackages += RequestRenderPackagesHandler;
                 }
             }
         }
@@ -469,6 +492,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         {
             node.PropertyChanged += OnNodePropertyChanged;
             node.RenderPackagesUpdated += OnRenderPackagesUpdated;
+            node.RequestRenderPackages += RequestRenderPackagesHandler;
 
             RegisterPortEventHandlers(node);
         }

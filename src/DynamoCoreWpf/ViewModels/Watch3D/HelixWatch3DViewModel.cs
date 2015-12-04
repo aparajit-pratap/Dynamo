@@ -171,6 +171,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             }
         }
 
+
         /// <summary>
         /// An event requesting a zoom to fit operation around the provided bounds.
         /// </summary>
