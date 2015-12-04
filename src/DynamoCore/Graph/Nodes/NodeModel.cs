@@ -1931,7 +1931,7 @@ namespace Dynamo.Graph.Nodes
                 var packages = new List<IRenderPackage>();
                 
                 packages.AddRange(task.RenderPackages);
-                packages.AddRange(OnRequestRenderPackages());
+                //packages.AddRange(OnRequestRenderPackages());
 
                 OnRenderPackagesUpdated(packages);
             }

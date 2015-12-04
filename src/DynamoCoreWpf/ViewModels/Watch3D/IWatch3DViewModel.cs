@@ -117,5 +117,10 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         event Action<bool> CanNavigateBackgroundPropertyChanged;
 
         #endregion
+
+        /// <summary>
+        /// 
+        /// </summary>
+        event Func<IEnumerable<IRenderPackage>> RequestRenderPackages;
     }
 }
