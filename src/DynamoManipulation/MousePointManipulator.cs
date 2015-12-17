@@ -271,9 +271,6 @@ namespace Dynamo.Manipulation
             return vector.Normalized();
         }
         
-        private static void SetSliderInputParams(DoubleSlider inputNode, double min, double max)
-        {
-        }
 
         /// <summary>
         /// Updates input node by specified amount.
@@ -287,7 +284,15 @@ namespace Dynamo.Manipulation
             if (Math.Abs(amount) < 0.001) return;
 
             dynamic uiNode = inputNode;
+            var sliderNode = inputNode as DoubleSlider;
 
+            if (sliderNode != null)
+            {
+                var step = sliderNode.Step;
+                amount = Math.Round(amount/step)*step;
+                sliderNode.Value = Math.Round(sliderNode.Value + amount, 3);
+                return;
+            }
             uiNode.Value = Math.Round(uiNode.Value + amount, 3);
         }
 

@@ -163,7 +163,7 @@ namespace Dynamo.Manipulation
         {
             //Wait until node has been evaluated and has got new origin
             //as expected position.
-            return gizmo != null && newPosition.DistanceTo(Origin) < 0.01;
+            return gizmo != null && newPosition.DistanceTo(Origin) <= 0.1;
         }
 
         /// <summary>
@@ -358,7 +358,7 @@ namespace Dynamo.Manipulation
             {
                 // Assign the input slider to the default value of the node's input port
                 var doubleNode = Node.InPorts[inputPortIndex].DefaultValue as DoubleNode;
-                if (doubleNode != null) inputNode.Value = doubleNode.Value;
+                if (doubleNode != null) SetSliderInputParams(inputNode, doubleNode.Value);
             }
             return inputNode;
         }
@@ -395,6 +395,16 @@ namespace Dynamo.Manipulation
 
             return new Tuple<double, double>(x, y);
         }
+
+        private static void SetSliderInputParams(DoubleSlider inputNode, double value, 
+            double min = 0, double max = 100, double stepSize = 0.001)
+        {
+            inputNode.Min = min;
+            inputNode.Max = max;
+            inputNode.Step = stepSize;
+            inputNode.Value = value;
+        }
+
 
         /// <summary>
         /// Method to draw manipulator
