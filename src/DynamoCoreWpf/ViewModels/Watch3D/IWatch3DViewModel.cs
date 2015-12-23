@@ -13,9 +13,51 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
     /// </summary>
     public interface IRay
     {
-        Point3D Origin { get; }
+        IPoint Origin { get; }
 
-        Vector3D Direction { get; }
+        IVector Direction { get; }
+    }
+
+    /// <summary>
+    /// Represents a generic point having x, y, and z coordinates
+    /// </summary>
+    public interface IPoint
+    {
+        /// <summary>
+        /// X coordinate of a point
+        /// </summary>
+        double X { get; }
+
+        /// <summary>
+        /// Y coordinate of a point
+        /// </summary>
+        double Y { get; }
+
+        /// <summary>
+        /// Z coordinate of a point
+        /// </summary>
+        double Z { get; }
+    }
+
+    /// <summary>
+    /// Represents a generic vector with x, y, and z components
+    /// </summary>
+    public interface IVector
+    {
+        /// <summary>
+        /// X component of a vector
+        /// </summary>
+        double X { get; }
+
+        /// <summary>
+        /// Y component of a vector
+        /// </summary>
+        double Y { get; }
+
+        /// <summary>
+        /// Z component of a vector
+        /// </summary>
+        double Z { get; }
     }
 
     /// <summary>
@@ -68,7 +110,7 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
         /// so that we can remove this API and simply use GetCameraInformation consistently
         /// </summary>
         /// <returns></returns>
-        Point3D? GetCameraPosition();
+        IPoint GetCameraPosition();
 
         /// <summary>
         /// Returns information about camera position in background 3D preview

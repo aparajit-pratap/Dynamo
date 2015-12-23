@@ -80,25 +80,53 @@ namespace Dynamo.Controls
         }
     }
 
-    internal class Ray3 : IRay
+    internal class DynamoRay : IRay
     {
         private readonly Point3D origin;
         private readonly Vector3D direction;
 
-        internal Ray3(Point3D origin, Vector3D direction)
+        internal DynamoRay(Point3D origin, Vector3D direction)
         {
             this.origin = origin;
             this.direction = direction;
         }
 
-        public Point3D Origin
+        public IPoint Origin
         {
-            get { return origin; }
+            get { return new DynamoPoint(origin); }
         }
 
-        public Vector3D Direction
+        public IVector Direction
         {
-            get { return direction; }
+            get { return new DynamoVector(direction); }
         }
+    }
+
+    internal class DynamoPoint : IPoint
+    {
+        internal DynamoPoint(Point3D point3D)
+        {
+            X = point3D.X;
+            Y = point3D.Y;
+            Z = point3D.Z;
+        }
+
+        public double X { get; private set; }
+        public double Y { get; private set; }
+        public double Z { get; private set; }
+    }
+
+    internal class DynamoVector : IVector
+    {
+        internal DynamoVector(Vector3D vector3D)
+        {
+            X = vector3D.X;
+            Y = vector3D.Y;
+            Z = vector3D.Z;
+        }
+
+        public double X { get; private set; }
+        public double Y { get; private set; }
+        public double Z { get; private set; }
     }
 }

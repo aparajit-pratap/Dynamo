@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Geometry;
 using Autodesk.DesignScript.Interfaces;
 using DSCoreNodesUI.Input;
@@ -90,7 +87,7 @@ namespace Dynamo.Manipulation
             get { return manipulatorContext.RenderPackageFactory; }
         }
 
-        internal Point3D? CameraPosition { get; private set; }
+        internal IPoint CameraPosition { get; private set; }
 
         #endregion
 
@@ -548,12 +545,12 @@ namespace Dynamo.Manipulation
 
     internal static class PointExtensions
     {
-        public static Point ToPoint(this Point3D point)
+        public static Point ToPoint(this IPoint point)
         {
             return Point.ByCoordinates(point.X, point.Y, point.Z);
         }
 
-        public static Vector ToVector(this Vector3D vec)
+        public static Vector ToVector(this IVector vec)
         {
             return Vector.ByCoordinates(vec.X, vec.Y, vec.Z);
         }

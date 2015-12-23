@@ -240,12 +240,12 @@ namespace Dynamo.Controls
 
             if (pt3D == null) return null;
 
-            return new Ray3(ray.Origin, ray.Direction);
+            return new DynamoRay(ray.Origin, ray.Direction);
         }
 
-        private Point3D GetCameraPosition()
+        private IPoint GetCameraPosition()
         {
-            return View.GetCameraPosition();
+            return new DynamoPoint(View.GetCameraPosition());
         }
     }
 

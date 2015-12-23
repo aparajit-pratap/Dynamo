@@ -556,9 +556,9 @@ namespace Dynamo.Wpf.ViewModels.Watch3D
             return RequestClickRay != null ? RequestClickRay(args) : null;
         }
 
-        internal event Func<Point3D> RequestCameraPosition;
+        internal event Func<IPoint> RequestCameraPosition;
 
-        public Point3D? GetCameraPosition()
+        public IPoint GetCameraPosition()
         {
             var handler = RequestCameraPosition;
             if (handler != null) return handler();

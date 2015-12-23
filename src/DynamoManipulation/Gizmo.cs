@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media.Media3D;
 using Autodesk.DesignScript.Interfaces;
 using Dynamo.Visualization;
 using Dynamo.Wpf.ViewModels.Watch3D;
@@ -78,7 +74,7 @@ namespace Dynamo.Manipulation
 
         private readonly NodeManipulator manipulator;
 
-        private Point3D? cameraPosition;
+        private IPoint cameraPosition;
 
         protected IWatch3DViewModel BackgroundPreviewViewModel
         {
@@ -123,7 +119,7 @@ namespace Dynamo.Manipulation
                 if(origin != null) origin.Dispose();
 
                 using (var cameraPos = cameraPosition != null
-                    ? Point.ByCoordinates(cameraPosition.Value.X, cameraPosition.Value.Y, cameraPosition.Value.Z)
+                    ? Point.ByCoordinates(cameraPosition.X, cameraPosition.Y, cameraPosition.Z)
                     : null)
                 {
 
@@ -169,7 +165,7 @@ namespace Dynamo.Manipulation
 
         private void OnViewCameraChanged(object o, RoutedEventArgs routedEventArgs)
         {
-            cameraPosition = routedEventArgs.Source as Point3D?;
+            cameraPosition = routedEventArgs.Source as IPoint;
 
             // Redraw Gizmos
             Redraw();
