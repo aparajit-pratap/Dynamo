@@ -302,7 +302,7 @@ namespace Autodesk.DesignScript.Interfaces
             Tolerance = -1;
             MaxTessellationDivisions = 512;
             ShowEdges = false;
-            ScaleFactor = 1.0;
+            ScaleFactor = 100.0;
 
             WorkspaceEvents.WorkspaceSettingsChanged += WorkspaceSettingsChanged;
         }
