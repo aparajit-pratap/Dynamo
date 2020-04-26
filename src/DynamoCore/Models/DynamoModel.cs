@@ -1471,8 +1471,7 @@ namespace Dynamo.Models
             EngineController.TraceReconcliationComplete += EngineController_TraceReconcliationComplete;
             EngineController.RequestCustomNodeRegistration += EngineController_RequestCustomNodeRegistration;
 
-            foreach (var def in CustomNodeManager.LoadedDefinitions)
-                RegisterCustomNodeDefinitionWithEngine(def);
+            EngineController.OnLibraryLoaded();
         }
 
         private void EngineController_RequestCustomNodeRegistration(object sender, EventArgs e)

@@ -146,8 +146,6 @@ namespace Dynamo.Engine
 
             liveRunnerServices = new LiveRunnerServices(this, geometryFactoryFileName);
 
-            OnLibraryLoaded();
-
             astBuilder = new AstBuilder(this);
             syncDataManager = new SyncDataManager();
 
@@ -501,11 +499,14 @@ namespace Dynamo.Engine
             OnTraceReconciliationComplete(new TraceReconciliationEventArgs(callsiteToOrphanMap));
         }
 
-        private void OnLibraryLoaded()
+        internal void OnLibraryLoaded()
         {
             liveRunnerServices.ReloadAllLibraries(libraryServices.ImportedLibraries);
 
             VMLibrariesReset?.Invoke();
+
+            // Need to make compiled custom nodes available before running the graph.
+            OnRequestCustomNodeRegistration();
         }
 
         /// <summary>
@@ -520,7 +521,7 @@ namespace Dynamo.Engine
         }
 
         internal event EventHandler RequestCustomNodeRegistration;
-        internal void OnRequestCustomNodeRegistration()
+        private void OnRequestCustomNodeRegistration()
         {
             RequestCustomNodeRegistration?.Invoke(null, EventArgs.Empty);
         }
