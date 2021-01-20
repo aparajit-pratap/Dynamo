@@ -343,6 +343,10 @@ namespace Dynamo.ViewModels
             {
                 cate.DisposeTree();
             }
+            foreach (var model in FilteredResults)
+            {
+                model.Dispose();
+            }
             Model.EntryUpdated -= UpdateEntry;
             Model.EntryRemoved -= RemoveEntry;
 

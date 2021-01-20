@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using DSCore;
 using Dynamo.Configuration;
 using Dynamo.Controls;
 using Dynamo.Graph.Nodes;
@@ -15,6 +16,7 @@ using Dynamo.Selection;
 using Dynamo.ViewModels;
 using FontAwesome.WPF;
 using Microsoft.Practices.Prism.Commands;
+using String = System.String;
 
 namespace Dynamo.Wpf.ViewModels
 {
@@ -25,6 +27,7 @@ namespace Dynamo.Wpf.ViewModels
         private bool isSelected;
         private SearchViewModel searchViewModel;
         private IDisposable undoRecorderGroup;
+        private NodeView nodeView;
 
         public event RequestBitmapSourceHandler RequestBitmapSource;
         public void OnRequestBitmapSource(IconRequestEventArgs e)
@@ -72,6 +75,17 @@ namespace Dynamo.Wpf.ViewModels
                 }
                 Clicked -= searchViewModel.OnSearchElementClicked;
                 searchViewModel = null;
+            }
+
+            if (undoRecorderGroup != null)
+            {
+                undoRecorderGroup.Dispose();
+                undoRecorderGroup = null;
+            }
+
+            if (nodeView != null)
+            {
+                nodeView.RepositionNodeHandler -= OnRepositionNode;
             }
             base.Dispose();
         }
@@ -252,6 +266,10 @@ namespace Dynamo.Wpf.ViewModels
             var portModel = (PortModel) parameter;
             var dynamoViewModel = searchViewModel.dynamoViewModel;
 
+            if (nodeView != null)
+            {
+                nodeView.RepositionNodeHandler -= OnRepositionNode;
+            }
             // Initialize a new undo action group before calling 
             // node CreateAndConnect and AutoLayout commands.
             if (undoRecorderGroup == null)
@@ -303,13 +321,33 @@ namespace Dynamo.Wpf.ViewModels
 
         private void AutoLayoutNodes(object sender, EventArgs e)
         {
-            var nodeView = (NodeView) sender;
+            nodeView = (NodeView) sender;
             var dynamoViewModel = nodeView.ViewModel.DynamoViewModel;
 
             dynamoViewModel.CurrentSpace.DoGraphAutoLayout(true);
 
             DynamoSelection.Instance.ClearSelection();
 
+<<<<<<< Updated upstream
+=======
+            dynamoViewModel.NodeViewReady -= AutoLayoutNodes;
+        }
+
+        private void OnRepositionNode(object sender, EventArgs a)
+        {
+            var dynamoViewModel = nodeView.ViewModel.DynamoViewModel;
+
+            DynamoSelection.Instance.Selection.Add(nodeView.ViewModel.NodeModel);
+
+            nodeView.ViewModel.WorkspaceViewModel.BeginDragSelectionWithUndoRecorder(new Point2D(nodeView.ViewModel.X, nodeView.ViewModel.Y));
+
+            dynamoViewModel.ExecuteCommand(new DynamoModel.DragSelectionCommand(
+                new Point2D(nodeView.ViewModel.X - nodeView.ActualWidth / 2.0, nodeView.ViewModel.Y),
+                DynamoModel.DragSelectionCommand.Operation.EndDrag));
+
+            DynamoSelection.Instance.ClearSelection();
+
+>>>>>>> Stashed changes
             // Close the undo action group once the node is created, connected and placed.
             if (undoRecorderGroup != null)
             {
@@ -318,6 +356,11 @@ namespace Dynamo.Wpf.ViewModels
 
                 dynamoViewModel.NodeViewReady -= AutoLayoutNodes;
             }
+<<<<<<< Updated upstream
+=======
+            nodeView.RepositionNodeHandler -= OnRepositionNode;
+            nodeView = null;
+>>>>>>> Stashed changes
         }
 
         public ICommand ClickedCommand { get; private set; }
