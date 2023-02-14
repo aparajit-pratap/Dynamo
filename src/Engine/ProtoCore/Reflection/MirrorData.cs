@@ -208,8 +208,6 @@ namespace ProtoCore
                 return null;
             }
 
-            internal static string PrecisionFormat { get; set; } = "f3";
-
             /// <summary>
             /// Returns string representation of data
             /// </summary>
@@ -232,11 +230,7 @@ namespace ProtoCore
                         // https://msdn.microsoft.com/en-us/library/3hfd35ad(v=vs.110).aspx
                         // We should always use invariant culture format for formattable 
                         // object.
-                        if (Data is double)
-                        {
-                            return (Data as IFormattable).ToString(PrecisionFormat, CultureInfo.InvariantCulture);
-                        }
-                        else return (Data as IFormattable).ToString(null, CultureInfo.InvariantCulture);
+                        return (Data as IFormattable).ToString(null, CultureInfo.InvariantCulture);
                     }
                     else
                     {
