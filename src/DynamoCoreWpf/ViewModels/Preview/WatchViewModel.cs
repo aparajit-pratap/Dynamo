@@ -106,8 +106,11 @@ namespace Dynamo.ViewModels
             {
                 var splits = Path.Split(':');
                 if (splits.Count() == 1)
+                {
                     return string.Empty;
-                return splits.Any() ? string.Format(NodeLabel == LIST ? "{0}" : " {0} ", splits.Last()) : string.Empty;
+                }
+                var last = splits.Length > 1 && splits.Last() == "" ? splits[splits.Length - 2] + ":" : splits.Last();
+                return splits.Any() ? string.Format(NodeLabel == LIST ? "{0}" : " {0} ", last) : string.Empty;
             }
         }
 
