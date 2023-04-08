@@ -409,6 +409,13 @@ namespace ProtoCore
             FuncTable = oldVmRuntimeCore.DSExecutable.FunctionTable;
         }
 
+        public MSILRuntimeCore(Core libraryCore)
+        {
+            ClassTable = libraryCore.ClassTable;
+            TypeSystem = libraryCore.TypeSystem;
+            FuncTable = libraryCore.FunctionTable;
+        }
+
         internal bool ConvertibleTo(CLRStackValue from, Type to)
         {
             return ClassTable.ClassNodes[from.TypeUID]?.ConvertibleTo(to.UID) ?? false;

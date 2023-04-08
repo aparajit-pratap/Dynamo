@@ -432,7 +432,42 @@ namespace ProtoCore
             ForLoopBlockIndex = Constants.kInvalidIndex;
         }
 
-        private void ResetAll(Options options)
+        // The unique subscript for SSA temporaries
+        // TODO Jun: Organize these variables in core into proper enums/classes/struct
+        public int SSASubscript { get; set; }
+        public Guid SSASubscript_GUID { get; set; }
+        public int SSAExprUID { get; set; }
+        public int SSAExpressionUID { get; set; }
+
+        /// <summary> 
+        /// ExpressionUID is used as the unique id to identify an expression
+        /// It is incremented by 1 after mapping its current value to an expression
+        /// </summary>
+        public int ExpressionUID { get; set; }
+
+        private int tempVarId = 0;
+        private int tempLanguageId = 0;
+
+
+        // TODO Jun: Cleansify me - i dont need to be here
+        public AssociativeNode AssocNode { get; set; }
+        public int watchStartPC { get; set; }
+
+
+        //
+        // TODO Jun: This is the expression interpreters executable. 
+        //           It must be moved to its own core, whre each core is an instance of a compiler+interpreter
+        //
+        public Executable ExprInterpreterExe { get; set; }
+        public int watchFunctionScope { get; set; }
+        public int watchBaseOffset { get; set; }
+        public List<SymbolNode> watchSymbolList { get; set; }
+
+        public CodeGen assocCodegen { get; set; }
+
+        public TextWriter ExecutionLog { get; set; }
+
+        public Core(Options options)
         {
             Heap = new Heap();
             //Rmem = new RuntimeMemory(Heap);
@@ -440,11 +475,11 @@ namespace ProtoCore
             DllTypesToLoad = new List<System.Type>();
 
             Options = options;
-            
+
             Compilers = new Dictionary<Language, Compiler>();
             ClassIndex = Constants.kInvalidIndex;
 
-            FunctionTable = new FunctionTable(); 
+            FunctionTable = new FunctionTable();
 
 
             watchFunctionScope = Constants.kInvalidIndex;
@@ -506,7 +541,7 @@ namespace ProtoCore
 
 
             ParsingMode = ParseMode.Normal;
-            
+
             IsParsingPreloadedAssembly = false;
             IsParsingCodeBlockNode = false;
             ImportHandler = null;
@@ -521,46 +556,6 @@ namespace ProtoCore
             InlineConditionalBodyGraphNodes = new Stack<List<GraphNode>>();
 
             newEntryPoint = Constants.kInvalidIndex;
-        }
-
-        // The unique subscript for SSA temporaries
-        // TODO Jun: Organize these variables in core into proper enums/classes/struct
-        public int SSASubscript { get; set; }
-        public Guid SSASubscript_GUID { get; set; }
-        public int SSAExprUID { get; set; }
-        public int SSAExpressionUID { get; set; }
-
-        /// <summary> 
-        /// ExpressionUID is used as the unique id to identify an expression
-        /// It is incremented by 1 after mapping its current value to an expression
-        /// </summary>
-        public int ExpressionUID { get; set; }
-
-        private int tempVarId = 0;
-        private int tempLanguageId = 0;
-
-
-        // TODO Jun: Cleansify me - i dont need to be here
-        public AssociativeNode AssocNode { get; set; }
-        public int watchStartPC { get; set; }
-
-
-        //
-        // TODO Jun: This is the expression interpreters executable. 
-        //           It must be moved to its own core, whre each core is an instance of a compiler+interpreter
-        //
-        public Executable ExprInterpreterExe { get; set; }
-        public int watchFunctionScope { get; set; }
-        public int watchBaseOffset { get; set; }
-        public List<SymbolNode> watchSymbolList { get; set; }
-
-        public CodeGen assocCodegen { get; set; }
-
-        public TextWriter ExecutionLog { get; set; }
-
-        public Core(Options options)
-        {
-            ResetAll(options);
         }
 
         public SymbolNode GetFirstVisibleSymbol(string name, int classscope, int function, CodeBlock codeblock)

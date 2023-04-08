@@ -168,15 +168,10 @@ namespace ProtoCore
             return primitiveTypeNames[type];
         }
 
-        public void SetClassTable(ProtoCore.DSASM.ClassTable table)
+        public void SetClassTable(ClassTable table)
         {
             Validity.Assert(null != table);
             Validity.Assert(0 == table.ClassNodes.Count);
-
-            if (0 != table.ClassNodes.Count)
-            {
-                return;
-            }
 
             for (int i = 0; i < classTable.ClassNodes.Count; ++i)
             {
@@ -187,17 +182,19 @@ namespace ProtoCore
 
         public void BuildAddressTypeMap()
         {
-            addressTypeClassMap = new Dictionary<DSASM.AddressType, int>();
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Null, (int)PrimitiveType.Null);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.ArrayPointer, (int)PrimitiveType.Array);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Double, (int)PrimitiveType.Double);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Char, (int)PrimitiveType.Char);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.String, (int)PrimitiveType.String);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Int, (int)PrimitiveType.Integer);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Boolean, (int)PrimitiveType.Bool);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.Pointer, (int)PrimitiveType.Pointer);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.FunctionPointer, (int)PrimitiveType.FunctionPointer);
-            addressTypeClassMap.Add(ProtoCore.DSASM.AddressType.DefaultArg, (int)PrimitiveType.Var);
+            addressTypeClassMap = new Dictionary<AddressType, int>
+            {
+                { AddressType.Null, (int)PrimitiveType.Null },
+                { AddressType.ArrayPointer, (int)PrimitiveType.Array },
+                { AddressType.Double, (int)PrimitiveType.Double },
+                { AddressType.Char, (int)PrimitiveType.Char },
+                { AddressType.String, (int)PrimitiveType.String },
+                { AddressType.Int, (int)PrimitiveType.Integer },
+                { AddressType.Boolean, (int)PrimitiveType.Bool },
+                { AddressType.Pointer, (int)PrimitiveType.Pointer },
+                { AddressType.FunctionPointer, (int)PrimitiveType.FunctionPointer },
+                { AddressType.DefaultArg, (int)PrimitiveType.Var }
+            };
         }
 
 
@@ -312,11 +309,12 @@ namespace ProtoCore
         //@TODO(Luke): Once the type system has been refactored, get rid of this
         public Type BuildTypeObject(int UID, int rank = Constants.kArbitraryRank)
         {
-            Type type = new Type();
-            type.Name = GetType(UID);
-            type.UID = UID;
-            type.rank = rank;
-            return type;
+            return new Type
+            {
+                Name = GetType(UID),
+                UID = UID,
+                rank = rank
+            };
         }
 
         public string GetType(int UID)

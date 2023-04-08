@@ -460,10 +460,14 @@ namespace ProtoScript.Runners
 
         public ChangeSetData csData { get; private set; }
 
-        public ChangeSetComputer(ProtoCore.Core core, ProtoCore.RuntimeCore runtimeCore)
+        public ChangeSetComputer(Core core, RuntimeCore runtimeCore) : this()
         {
             this.core = core;
             this.runtimeCore = runtimeCore;
+        }
+
+        public ChangeSetComputer()
+        {
             currentSubTreeList = new Dictionary<Guid, Subtree>();
         }
 
@@ -481,19 +485,21 @@ namespace ProtoScript.Runners
             {
                 comp.currentSubTreeList.Add(subTreePairs.Key, subTreePairs.Value); 
             }
-            
+
             if (csData != null)
             {
-                comp.csData = new ChangeSetData();
-                comp.csData.ContainsDeltaAST = csData.ContainsDeltaAST;
-                comp.csData.DeletedBinaryExprASTNodes = new List<AssociativeNode>(csData.DeletedBinaryExprASTNodes);
-                comp.csData.DeletedFunctionDefASTNodes = new List<AssociativeNode>(csData.DeletedFunctionDefASTNodes);
-                comp.csData.RemovedBinaryNodesFromModification = new List<AssociativeNode>(csData.RemovedBinaryNodesFromModification);
-                comp.csData.ModifiedNodesForRuntimeSetValue = new List<AssociativeNode>(csData.ModifiedNodesForRuntimeSetValue);
-                comp.csData.RemovedFunctionDefNodesFromModification = new List<AssociativeNode>(csData.RemovedFunctionDefNodesFromModification);
-                comp.csData.ForceExecuteASTList = new List<AssociativeNode>(csData.ForceExecuteASTList);
-                comp.csData.ModifiedFunctions = new List<AssociativeNode>(csData.ModifiedFunctions);
-                comp.csData.ModifiedNestedLangBlock = new List<AssociativeNode>(csData.ModifiedNestedLangBlock);
+                comp.csData = new ChangeSetData
+                {
+                    ContainsDeltaAST = csData.ContainsDeltaAST,
+                    DeletedBinaryExprASTNodes = new List<AssociativeNode>(csData.DeletedBinaryExprASTNodes),
+                    DeletedFunctionDefASTNodes = new List<AssociativeNode>(csData.DeletedFunctionDefASTNodes),
+                    RemovedBinaryNodesFromModification = new List<AssociativeNode>(csData.RemovedBinaryNodesFromModification),
+                    ModifiedNodesForRuntimeSetValue = new List<AssociativeNode>(csData.ModifiedNodesForRuntimeSetValue),
+                    RemovedFunctionDefNodesFromModification = new List<AssociativeNode>(csData.RemovedFunctionDefNodesFromModification),
+                    ForceExecuteASTList = new List<AssociativeNode>(csData.ForceExecuteASTList),
+                    ModifiedFunctions = new List<AssociativeNode>(csData.ModifiedFunctions),
+                    ModifiedNestedLangBlock = new List<AssociativeNode>(csData.ModifiedNestedLangBlock),
+                };
             }
             return comp;
         }
@@ -599,6 +605,7 @@ namespace ProtoScript.Runners
                 var nullNodes = BuildNullAssignments(deletedBinaryExpressions, st.GUID);
                 deltaAstList.AddRange(nullNodes);
 
+                // MSIL_TODO: Save warning states in MSIL runtime Core.
                 core.BuildStatus.ClearWarningsForGraph(st.GUID);
                 runtimeCore.RuntimeStatus.ClearWarningsForGraph(st.GUID);
                 csData.DeletedBinaryExprASTNodes.AddRange(deletedBinaryExpressions);
@@ -1140,16 +1147,6 @@ namespace ProtoScript.Runners
             return existingList;
         }
 
-        private bool CompileToSSA(Guid guid, List<AssociativeNode> astList, out List<AssociativeNode> ssaAstList)
-        {
-            core.Options.GenerateSSA = true;
-            core.ResetSSASubscript(guid, 0);
-            ProtoAssociative.CodeGen codegen = new ProtoAssociative.CodeGen(core, null);
-            ssaAstList = new List<AssociativeNode>();
-            ssaAstList = codegen.EmitSSA(astList);
-            return true;
-        }
-
         /// <summary>
         /// Creates a list of null assignment statements where the lhs is retrieved from an ast list.
         /// Any expressions which are not assignments are not modified.
@@ -1218,12 +1215,13 @@ namespace ProtoScript.Runners
     public partial class LiveRunner : ILiveRunner, IDisposable
     {
         private IDictionary<string, object> graphOutput;
+        private MSILRuntimeCore msilRuntimeCore;
         internal bool IsTestMode = false;
 
         /// <summary>
         /// Set to false for new MSIL based execution engine.
         /// </summary>
-        internal bool DSExecutionEngine = true;
+        internal bool UseLegacyEngine = true;
 
         /// <summary>
         /// Run mode for new MSIL engine.
@@ -1283,15 +1281,7 @@ namespace ProtoScript.Runners
 
         internal void CompileAndExecuteMSIL(List<AssociativeNode> finalDeltaAstList)
         {
-            var input = new Dictionary<string, IList>();
-
-            var assemblyPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
-            //TODO_MSIL: remove the dependency on the old VM by implementing
-            //necessary Emit functions(ex EmitFunctionDefinition and EmitImportStatements and all the preloading logic)
-            codeGenIL = codeGenIL ?? new CodeGenIL(input, Path.Combine(assemblyPath, "opCodes.txt"),
-                new MSILRuntimeCore(runtimeCore), MSILRunMode);
 #if DEBUG
-            
             codeGenIL.LoggingEnabled = true;
 #endif
             graphOutput = IsTestMode ? codeGenIL.EmitAndExecute(finalDeltaAstList) : MSILRunMode == CodeGenIL.RunMode.ExecuteOnly ? 
@@ -1370,22 +1360,11 @@ namespace ProtoScript.Runners
         private EmitMSIL.CodeGenIL codeGenIL = null;
 
         private ProtoCore.RuntimeCore runtimeCore = null;
-        public ProtoCore.RuntimeCore RuntimeCore
-        {
-            get
-            {
-                return runtimeCore;
-            }
-            private set
-            {
-                runtimeCore = value;
-            }
-        }
+        public ProtoCore.RuntimeCore RuntimeCore => runtimeCore;
 
         private Options coreOptions = null;
         private Configuration configuration = null;
         private int deltaSymbols = 0;
-        private ProtoCore.CompileTime.Context staticContext = null;
         private readonly object mutexObject = new object();
         private ChangeSetComputer changeSetComputer;
         private ChangeSetApplier changeSetApplier;
@@ -1403,8 +1382,6 @@ namespace ProtoScript.Runners
             runner = new ProtoScriptRunner();
 
             InitCore();
-
-            staticContext = new ProtoCore.CompileTime.Context();
 
             changeSetComputer = new ChangeSetComputer(runnerCore, runtimeCore);
             changeSetApplier = new ChangeSetApplier();
@@ -1581,12 +1558,6 @@ namespace ProtoScript.Runners
             if (astList.Any())
             {
                 succeeded = runner.CompileAndGenerateExe(astList, targetCore, new ProtoCore.CompileTime.Context());
-                if (succeeded)
-                {
-                    // Update the symbol tables
-                    // TODO Jun: Expand to accomoadate the list of symbols
-                    staticContext.symbolTable = targetCore.DSExecutable.runtimeSymbols[0];
-                }
             }
             return succeeded;
         }
@@ -1788,7 +1759,7 @@ namespace ProtoScript.Runners
                 // Get AST list that need to be executed
                 var finalDeltaAstList = changeSetComputer.GetDeltaASTList(syncData);
 
-                if (!DSExecutionEngine)
+                if (!UseLegacyEngine)
                 {
                     CompileAndExecuteMSIL(finalDeltaAstList);
                     return;
@@ -1846,7 +1817,6 @@ namespace ProtoScript.Runners
             runner = new ProtoScriptRunner();
             deltaSymbols = 0;
             InitCore();
-            staticContext = new ProtoCore.CompileTime.Context();
             changeSetComputer = new ChangeSetComputer(runnerCore, runtimeCore);
             CLRModuleType.ClearTypes();
         }
@@ -1876,6 +1846,26 @@ namespace ProtoScript.Runners
                 string code = codeGen.GenerateCode();
 
                 SynchronizeInternal(code);
+            }
+        }
+
+        internal void ResyncMSILCore(Core libraryCore)
+        {
+            lock (mutexObject)
+            {
+                changeSetComputer = new ChangeSetComputer();
+                CLRModuleType.ClearTypes();
+
+                msilRuntimeCore = new MSILRuntimeCore(libraryCore);
+
+                var input = new Dictionary<string, IList>();
+
+                var assemblyPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                //TODO_MSIL: remove the dependency on the old VM by implementing
+                //necessary Emit functions(ex EmitFunctionDefinition and EmitImportStatements and all the preloading logic)
+                codeGenIL = new CodeGenIL(input, Path.Combine(assemblyPath, "opCodes.txt"),
+                    msilRuntimeCore, MSILRunMode);
+
             }
         }
 

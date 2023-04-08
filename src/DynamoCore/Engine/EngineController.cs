@@ -555,7 +555,14 @@ namespace Dynamo.Engine
 
         private void OnLibraryLoaded()
         {
-            liveRunnerServices.ReloadAllLibraries(libraryServices.ImportedLibraries);
+            if (UseLegacyEngine)
+            {
+                liveRunnerServices.ReloadAllLibraries(libraryServices.ImportedLibraries);
+            }
+            else
+            {
+                liveRunnerServices.ResyncLiveRunnerCore(libraryServices.LibraryManagementCore);
+            }
 
             VMLibrariesReset?.Invoke();
         }

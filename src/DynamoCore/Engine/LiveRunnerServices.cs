@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Dynamo.Logging;
 using Dynamo.Models;
 using EmitMSIL;
+using ProtoCore;
 using ProtoCore.Mirror;
 using ProtoScript.Runners;
 
@@ -11,7 +12,7 @@ namespace Dynamo.Engine
 {
     internal class LiveRunnerFactory
     {
-        internal static ILiveRunner CreateLiveRunner(EngineController controller, string geometryFactoryFileName)
+        internal static ILiveRunner CreateLiveRunner(string geometryFactoryFileName)
         {
             var configuration = new LiveRunner.Configuration();
             configuration.PassThroughConfiguration.Add(Autodesk.DesignScript.Interfaces.ConfigurationKeys.GeometryFactory, geometryFactoryFileName);
@@ -33,7 +34,7 @@ namespace Dynamo.Engine
         /// <param name="geometryFactoryFileName">Path to LibG</param>
         public LiveRunnerServices(EngineController controller, string geometryFactoryFileName)
         {
-            liveRunner = LiveRunnerFactory.CreateLiveRunner(controller, geometryFactoryFileName);
+            liveRunner = LiveRunnerFactory.CreateLiveRunner(geometryFactoryFileName);
         }
 
         /// <summary>
@@ -60,13 +61,8 @@ namespace Dynamo.Engine
         /// RuntimeCore is an object that is instantiated once across the lifecycle of the runtime.
         /// This is the entry point of the runtime VM and its input is a DS Executable format. 
         /// </summary>
-        public ProtoCore.RuntimeCore RuntimeCore
-        {
-            get
-            {
-                return liveRunner.RuntimeCore;
-            }
-        }
+        public ProtoCore.RuntimeCore RuntimeCore => liveRunner.RuntimeCore;
+
         internal (TimeSpan compileTime, TimeSpan executionTime) CompileAndExecutionTime => (liveRunner as LiveRunner).CompileAndExecutionTime;
 
         /// <summary>
@@ -97,16 +93,19 @@ namespace Dynamo.Engine
         /// </summary>
         /// <param name="graphData"></param>
         /// <param name="verboseLogging"></param>
-        /// <param name="dsExecution"></param>
+        /// <param name="useLegacyEngine"></param>
         /// <param name="mode"></param>
-        internal void UpdateGraph(GraphSyncData graphData, bool verboseLogging, bool dsExecution, DynamoModel.RunMode mode)
+        internal void UpdateGraph(GraphSyncData graphData, bool verboseLogging, bool useLegacyEngine, DynamoModel.RunMode mode)
         {
             if (verboseLogging)
                 Log("LRS.UpdateGraph: " + graphData);
 
-            (liveRunner as LiveRunner).DSExecutionEngine = dsExecution;
-            (liveRunner as LiveRunner).MSILRunMode = mode == DynamoModel.RunMode.CompileAndExecute ? CodeGenIL.RunMode.CompileAndExecute :
-                mode == DynamoModel.RunMode.CompileOnly ? CodeGenIL.RunMode.CompileOnly : CodeGenIL.RunMode.ExecuteOnly;
+            (liveRunner as LiveRunner).UseLegacyEngine = useLegacyEngine;
+            if (!useLegacyEngine)
+            {
+                (liveRunner as LiveRunner).MSILRunMode = mode == DynamoModel.RunMode.CompileAndExecute ? CodeGenIL.RunMode.CompileAndExecute :
+                    mode == DynamoModel.RunMode.CompileOnly ? CodeGenIL.RunMode.CompileOnly : CodeGenIL.RunMode.ExecuteOnly;
+            }
             (liveRunner as LiveRunner).IsTestMode = Models.DynamoModel.IsTestMode;
             liveRunner.UpdateGraph(graphData);
         }
@@ -166,9 +165,15 @@ namespace Dynamo.Engine
         /// all libraries and reset VM.
         /// </summary>
         /// <param name="libraries"></param>
+        /// <param name="libraryCore"></param>
         internal void ReloadAllLibraries(IEnumerable<string> libraries)
         { 
             liveRunner.ResetVMAndResyncGraph(libraries);
+        }
+
+        internal void ResyncLiveRunnerCore(ProtoCore.Core libraryCore)
+        {
+            (liveRunner as LiveRunner).ResyncMSILCore(libraryCore);
         }
     }
 }

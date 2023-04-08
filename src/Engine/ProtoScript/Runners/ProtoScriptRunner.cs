@@ -14,31 +14,26 @@ namespace ProtoScript.Runners
 
         private bool Compile(string code, ProtoCore.Core core, ProtoCore.CompileTime.Context context)
         {
-            bool buildSucceeded = false;
             try
             {
-                // No More HashAngleReplace for unified parser (Fuqiang)
-                //String strSource = ProtoCore.Utils.LexerUtils.HashAngleReplace(code);    
-
                 //defining the global Assoc block that wraps the entire .ds source file
-                ProtoCore.LanguageCodeBlock globalBlock = new ProtoCore.LanguageCodeBlock();
-                globalBlock.Language = ProtoCore.Language.Associative;
-                globalBlock.Code = code;
-
+                var globalBlock = new ProtoCore.LanguageCodeBlock
+                {
+                    Language = ProtoCore.Language.Associative,
+                    Code = code
+                };
                 //passing the global Assoc wrapper block to the compiler
                 ProtoCore.Language id = globalBlock.Language;
                 int blockId = Constants.kInvalidIndex;
                 core.Compilers[id].Compile(out blockId, null, globalBlock, context, EventSink);
 
                 core.BuildStatus.ReportBuildResult();
-                buildSucceeded = core.BuildStatus.BuildSucceeded;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
             }
-
-            return buildSucceeded;
+            return core.BuildStatus.BuildSucceeded;
         }
 
 
