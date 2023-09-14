@@ -5,6 +5,7 @@
         xmlns:ui="clr-namespace:Dynamo.UI"
         xmlns:localui="clr-namespace:Dynamo.Wpf.UI.GuidedTour"
         xmlns:w="clr-namespace:System.Windows;assembly=PresentationCore"
+        xmlns:fa5="http://schemas.fontawesome.com/icons/"
         Title="{x:Static p:Resources.GenericTaskDialogTitle}"
         MinWidth="400"
         MaxWidth="500"
@@ -98,6 +99,25 @@
                                Foreground="#3C3C3C"
                                Text="{Binding TitleText, UpdateSourceTrigger=PropertyChanged}"
                                TextWrapping="Wrap" />
+                    <Label HorizontalAlignment="Right" 
+                           Name="TitleInfo"
+                           VerticalAlignment="Center" 
+                           Height="26" 
+                           Width="53" 
+                           Margin="20 -3 0 0">
+                        <Label.ToolTip>
+                            <ToolTip Content="{x:Static p:Resources.FileTrustWarningPopupTooltip1}" 
+                                     Style="{StaticResource GenericToolTipLight}"/>
+                        </Label.ToolTip>
+                        <Label.Content>
+                            <fa5:ImageAwesome Width="15" 
+                                             Height="15" 
+                                             VerticalAlignment="Bottom" 
+                                             HorizontalAlignment="Left" 
+                                             Icon="Solid_QuestionCircle"                                               
+                                             Foreground="#808080"/>
+                        </Label.Content>
+                    </Label>
                 </DockPanel>
                 <Rectangle Name="Separator"
                            Grid.Row="0"
